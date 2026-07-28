@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Financial Assistant — Dashboard Keuangan Real-time & Premium">
+    <title>Financial Assistant — Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+</head>
+<body>
+    <!-- Ambient Light Background Orbs -->
+    <div class="ambient-glow orb-1"></div>
+    <div class="ambient-glow orb-2"></div>
+    <div class="ambient-glow orb-3"></div>
+
+    <div class="app-container">
+
+        <!-- ═══ Header ═══ -->
+        <header class="header">
+            <div class="header-left">
+                <div class="header-logo">
+                    <span class="logo-icon">💰</span>
+                    <div class="logo-glow"></div>
+                </div>
+                <div>
+                    <h1 class="header-title">Financial Assistant</h1>
+                    <p class="header-subtitle">Dashboard Keuangan Real-time</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="live-indicator" id="liveIndicator">
+                    <span class="live-dot"></span>
+                    <span>Live Sync</span>
+                </div>
+                <span class="header-date" id="headerDate"></span>
+                <a href="/api/export" class="btn-export" id="btnExport">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span>Export Report</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- ═══ KPI Cards ═══ -->
+        <section class="kpi-grid" id="kpiGrid">
+            <div class="kpi-card income">
+                <div class="card-aura"></div>
+                <div class="kpi-card-inner">
+                    <div class="kpi-header">
+                        <span class="kpi-label">Total Pemasukan</span>
+                        <div class="kpi-icon">💵</div>
+                    </div>
+                    <div class="kpi-value" id="kpiIncome">Rp 0</div>
+                    <div class="kpi-footer">
+                        <span class="kpi-sub" id="kpiIncomeSub">30 hari terakhir</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="kpi-card expense">
+                <div class="card-aura"></div>
+                <div class="kpi-card-inner">
+                    <div class="kpi-header">
+                        <span class="kpi-label">Total Pengeluaran</span>
+                        <div class="kpi-icon">💸</div>
+                    </div>
+                    <div class="kpi-value" id="kpiExpense">Rp 0</div>
+                    <div class="kpi-footer">
+                        <span class="kpi-sub" id="kpiExpenseSub">30 hari terakhir</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="kpi-card balance">
+                <div class="card-aura"></div>
+                <div class="kpi-card-inner">
+                    <div class="kpi-header">
+                        <span class="kpi-label">Net Balance</span>
+                        <div class="kpi-icon">🏛️</div>
+                    </div>
+                    <div class="kpi-value" id="kpiBalance">Rp 0</div>
+                    <div class="kpi-footer">
+                        <span class="kpi-sub" id="kpiBalanceSub">Net balance</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="kpi-card savings">
+                <div class="card-aura"></div>
+                <div class="kpi-card-inner">
+                    <div class="kpi-header">
+                        <span class="kpi-label">Savings Rate</span>
+                        <div class="kpi-icon">⚡</div>
+                    </div>
+                    <div class="kpi-value" id="kpiSavings">0%</div>
+                    <div class="kpi-footer">
+                        <span class="kpi-sub" id="kpiSavingsSub">Target: ≥ 20%</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ Behavior Analysis & Recommendations ═══ -->
+        <section class="analysis-section" id="analysisSection">
+            <div class="analysis-card">
+                <div class="analysis-header">
+                    <div class="analysis-header-left">
+                        <div class="section-title-wrap">
+                            <span class="section-icon">🧠</span>
+                            <div>
+                                <h2 class="analysis-title">Financial Behavior & AI Analysis</h2>
+                                <span class="analysis-subtitle">Analisis otomatis penggunaan dana dan rekomendasi penghematan</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="score-container">
+                        <div class="score-badge" id="scoreBadge">
+                            <div class="score-ring">
+                                <span class="score-number" id="scoreNumber">100</span>
+                            </div>
+                            <div class="score-info">
+                                <span class="score-title">Health Index</span>
+                                <span class="score-status" id="scoreStatus">Optimal</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="analysis-body">
+                    <div class="analysis-left">
+                        <h4 class="analysis-subheading"><span class="sub-icon">💡</span> Smart Recommendations</h4>
+                        <div class="recommendations-list" id="recommendationsList">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                    <div class="analysis-right">
+                        <h4 class="analysis-subheading"><span class="sub-icon">🏆</span> Top Spending Categories</h4>
+                        <div class="top-categories-list" id="topCategoriesList">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ Charts ═══ -->
+        <section class="charts-grid">
+            <div class="chart-card full-width">
+                <div class="chart-header">
+                    <div class="chart-title-wrap">
+                        <span class="chart-icon">📈</span>
+                        <span class="chart-title">Analytics & Cashflow Trend</span>
+                    </div>
+                    <div class="period-switcher">
+                        <button class="period-btn active" data-period="daily">Daily</button>
+                        <button class="period-btn" data-period="monthly">Monthly</button>
+                        <button class="period-btn" data-period="annual">Annual</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title-wrap">
+                        <span class="chart-icon">📂</span>
+                        <span class="chart-title">Breakdown Kategori</span>
+                    </div>
+                    <span class="chart-badge">Categories</span>
+                </div>
+                <div class="chart-container doughnut">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title-wrap">
+                        <span class="chart-icon">📊</span>
+                        <span class="chart-title">Income vs Expense</span>
+                    </div>
+                    <span class="chart-badge">Monthly</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ Savings Goals & Budget Grid ═══ -->
+        <section class="management-grid">
+            <!-- Savings Goals Card -->
+            <div class="management-card">
+                <div class="management-header">
+                    <div>
+                        <h3 class="management-title">🏦 Tabungan & Goals</h3>
+                        <p class="management-subtitle">Target tabungan khusus kamu</p>
+                    </div>
+                    <button class="btn-action glow-btn" onclick="openSavingsModal()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <span>Goal Baru</span>
+                    </button>
+                </div>
+                <div class="savings-grid" id="savingsGrid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Budget vs Actual Card -->
+            <div class="management-card">
+                <div class="management-header">
+                    <div>
+                        <h3 class="management-title">💰 Budget vs Realisasi</h3>
+                        <p class="management-subtitle">Batas alokasi penggunaan dana</p>
+                    </div>
+                    <button class="btn-action glow-btn" onclick="openBudgetModal()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <span>Set Budget</span>
+                    </button>
+                </div>
+                <div class="budget-list" id="budgetList">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Bank & E-Wallet Accounts Card -->
+            <div class="management-card">
+                <div class="management-header">
+                    <div>
+                        <h3 class="management-title">🏛️ Rekening & Aset</h3>
+                        <p class="management-subtitle">Lokasi tempat simpanan & tabungan</p>
+                    </div>
+                    <button class="btn-action glow-btn" onclick="openAccountModal()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <span>+ Akun Baru</span>
+                    </button>
+                </div>
+                <div class="accounts-list" id="accountsList">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ Transactions Table ═══ -->
+        <section class="transactions-section">
+            <div class="transactions-card">
+                <div class="transactions-header">
+                    <div class="chart-title-wrap">
+                        <span class="chart-icon">📋</span>
+                        <span class="transactions-title">Transaksi Terakhir</span>
+                    </div>
+                    <span class="transactions-count" id="txCount">0 transaksi</span>
+                </div>
+                <table class="transactions-table" id="transactionsTable">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Tipe</th>
+                            <th>Kategori</th>
+                            <th>Deskripsi</th>
+                            <th style="text-align: right;">Jumlah</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <div class="empty-state-icon-box">📭</div>
+                    <div class="empty-state-text">Belum ada transaksi</div>
+                    <div class="empty-state-sub">Mulai catat keuanganmu lewat Telegram Bot!</div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="savingsModal" style="display: none;">
+        <div class="modal">
+            <h3 class="modal-title">🏦 Buat Goal Tabungan Baru</h3>
+            <div class="form-group">
+                <label>Nama Goal</label>
+                <input type="text" id="savingsNameInput" placeholder="Contoh: Liburan Bali, Dana Darurat">
+            </div>
+            <div class="form-group">
+                <label>Target Nominal (Rp)</label>
+                <input type="number" id="savingsTargetInput" placeholder="Contoh: 5000000">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeSavingsModal()">Batal</button>
+                <button class="btn-primary" onclick="submitSavingsGoal()">Simpan Goal</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="budgetModal" style="display: none;">
+        <div class="modal">
+            <h3 class="modal-title">💰 Set Budget Kategori</h3>
+            <div class="form-group">
+                <label>Pilih Kategori</label>
+                <select id="budgetCategorySelect">
+                    <option value="🍔 Makanan & Minuman">🍔 Makanan & Minuman</option>
+                    <option value="🚗 Transportasi">🚗 Transportasi</option>
+                    <option value="🛒 Belanja">🛒 Belanja</option>
+                    <option value="💡 Tagihan & Utilitas">💡 Tagihan & Utilitas</option>
+                    <option value="🎮 Hiburan">🎮 Hiburan</option>
+                    <option value="💊 Kesehatan">💊 Kesehatan</option>
+                    <option value="📚 Pendidikan">📚 Pendidikan</option>
+                    <option value="💰 Investasi">💰 Investasi</option>
+                    <option value="📦 Lainnya">📦 Lainnya</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Limit Bulanan (Rp)</label>
+                <input type="number" id="budgetLimitInput" placeholder="Contoh: 1500000">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeBudgetModal()">Batal</button>
+                <button class="btn-primary" onclick="submitBudget()">Simpan Budget</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="accountModal" style="display: none;">
+        <div class="modal">
+            <h3 class="modal-title">🏛️ Tambah / Update Rekening Tabungan</h3>
+            <div class="form-group">
+                <label>Nama Akun / Bank / E-Wallet</label>
+                <input type="text" id="accountNameInput" placeholder="Contoh: BCA, GoPay, Mandiri, Cash, Bibit">
+            </div>
+            <div class="form-group">
+                <label>Saldo Saat Ini (Rp)</label>
+                <input type="number" id="accountBalanceInput" placeholder="Contoh: 5000000">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeAccountModal()">Batal</button>
+                <button class="btn-primary" onclick="submitAccount()">Simpan Akun</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>
