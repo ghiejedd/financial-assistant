@@ -402,6 +402,9 @@ async def process_transaction(
     else:
         tx_type, cat_key, cat_display = detect_type_and_category(desc, raw_text=text)
 
+    # Detect account mentioned in text
+    account_name = await db.detect_account_in_text(user_id, text)
+
     # Save to database
     tx = await db.add_transaction(
         user_id=user_id,
@@ -409,6 +412,7 @@ async def process_transaction(
         category=cat_display,
         amount=amount,
         description=desc.capitalize(),
+        account_name=account_name,
     )
 
     # Build confirmation message
@@ -416,11 +420,17 @@ async def process_transaction(
     type_text = "Pemasukan" if tx_type == "income" else "Pengeluaran"
     toggle_target = "Pengeluaran" if tx_type == "income" else "Pemasukan"
 
+    acc_info = tx.get("account_info")
+    acc_text = ""
+    if acc_info:
+        acc_text = f"\n💳 Rekening: {acc_info['icon']} **{acc_info['name']}** (Saldo: **{format_rupiah(acc_info['balance'])}**)"
+
     confirm_text = (
         f"{type_emoji} **{type_text} Dicatat!**\n\n"
         f"📂 Kategori: {cat_display}\n"
         f"💰 Jumlah: **{format_rupiah(amount)}**\n"
-        f"📝 Deskripsi: {desc.capitalize()}\n"
+        f"📝 Deskripsi: {desc.capitalize()}"
+        f"{acc_text}\n"
         f"🕐 {datetime.now().strftime('%d %b %Y, %H:%M')}"
     )
 
@@ -444,6 +454,8 @@ async def process_transaction(
             "user_id": user_id,
             "transaction": tx,
         })
+        if acc_info:
+            await sse_notify({"event": "account_updated", "user_id": user_id})
 
     return True
 
@@ -461,9 +473,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "🤔 Aku gak bisa baca transaksi dari pesan itu.\n\n"
             "Coba format:\n"
-            '• `makan siang 35rb` (Pengeluaran)\n'
-            '• `+ gaji 5jt` (Pemasukan)\n'
-            '• `masuk freelance 1.5jt` (Pemasukan)\n\n'
+            '• `makan siang 35rb bri` (Pengeluaran BRI)\n'
+            '• `+ gaji 5jt bsi` (Pemasukan BSI)\n'
+            '• `gopay 50k jajan` (Pengeluaran GoPay)\n\n'
             "_Ketik /help untuk bantuan lengkap_",
             parse_mode="Markdown",
         )
@@ -485,11 +497,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             type_text = "Pemasukan" if tx["type"] == "income" else "Pengeluaran"
             toggle_target = "Pengeluaran" if tx["type"] == "income" else "Pemasukan"
 
+            acc_info = tx.get("account_info")
+            acc_text = ""
+            if acc_info:
+                acc_text = f"\n💳 Rekening: {acc_info['icon']} **{acc_info['name']}** (Saldo: **{format_rupiah(acc_info['balance'])}**)"
+
             confirm_text = (
                 f"{type_emoji} **Tipe Diubah ke {type_text}!**\n\n"
                 f"📂 Kategori: {tx['category']}\n"
                 f"💰 Jumlah: **{format_rupiah(tx['amount'])}**\n"
-                f"📝 Deskripsi: {tx['description']}\n"
+                f"📝 Deskripsi: {tx['description']}"
+                f"{acc_text}\n"
                 f"🕐 {datetime.now().strftime('%d %b %Y, %H:%M')}"
             )
             keyboard = InlineKeyboardMarkup([
@@ -503,6 +521,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if sse_notify:
                 await sse_notify({"event": "new_transaction", "user_id": user_id})
+                if acc_info:
+                    await sse_notify({"event": "account_updated", "user_id": user_id})
 
     elif data.startswith("delete_"):
         tx_id = int(data.split("_")[1])
@@ -514,6 +534,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             if sse_notify:
                 await sse_notify({"event": "transaction_deleted", "user_id": user_id})
+                await sse_notify({"event": "account_updated", "user_id": user_id})
         else:
             await query.edit_message_text("❌ Transaksi tidak ditemukan.")
 

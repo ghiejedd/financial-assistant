@@ -150,9 +150,41 @@ async def init_db():
             CREATE INDEX IF NOT EXISTS idx_transactions_user
             ON transactions(telegram_user_id, created_at DESC)
         """)
+        try:
+            await db.execute("ALTER TABLE transactions ADD COLUMN account_name TEXT")
+        except Exception:
+            pass
         await db.commit()
     
     os.makedirs(EXPORTS_DIR, exist_ok=True)
+
+
+async def detect_account_in_text(user_id: int, text: str) -> Optional[str]:
+    """
+    Detect account name mentioned in text (e.g. 'BRI', 'BSI', 'BCA', 'Mandiri', 'GoPay', 'Dana', etc.).
+    Returns matched account name (string) or None.
+    """
+    import re
+    text_clean = text.lower().strip()
+    words = re.findall(r'\b[a-z0-9_]+\b', text_clean)
+
+    # 1. Match against existing accounts in DB for this user
+    user_accounts = await get_accounts(user_id)
+    for acc in user_accounts:
+        acc_name_lower = acc["name"].lower().strip()
+        if acc_name_lower in words or acc_name_lower in text_clean:
+            return acc["name"]
+
+    # 2. Match against known bank / e-wallet keywords
+    for kw in ACCOUNT_ICONS.keys():
+        if kw in ("bank", "ewallet", "investasi"):
+            continue
+        if kw in words or kw in text_clean:
+            if len(kw) <= 4:
+                return kw.upper()
+            return kw.capitalize()
+
+    return None
 
 
 async def add_transaction(
@@ -161,18 +193,44 @@ async def add_transaction(
     category: str,
     amount: float,
     description: str = "",
+    account_name: Optional[str] = None,
 ) -> dict:
-    """Add a new transaction and return it."""
+    """Add a new transaction and return it, updating account balance if account_name is provided."""
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
             """
-            INSERT INTO transactions (telegram_user_id, type, category, amount, description, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO transactions (telegram_user_id, type, category, amount, description, account_name, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (user_id, tx_type, category, amount, description, datetime.now().isoformat()),
+            (user_id, tx_type, category, amount, description, account_name, datetime.now().isoformat()),
         )
         await db.commit()
         tx_id = cursor.lastrowid
+
+    account_info = None
+    if account_name:
+        # Get current balance of this account
+        user_accounts = await get_accounts(user_id)
+        current_acc = next((a for a in user_accounts if a["name"].lower() == account_name.lower()), None)
+        current_balance = current_acc["balance"] if current_acc else 0.0
+
+        delta = amount if tx_type == "income" else -amount
+        new_balance = current_balance + delta
+
+        # Update account in DB
+        acc_type = current_acc["account_type"] if current_acc else ("bank" if account_name.upper() in ["BRI", "BSI", "BCA", "MANDIRI", "BNI", "CIMB"] else "ewallet")
+        acc_data = await add_or_update_account(
+            user_id=user_id,
+            name=account_name,
+            balance=new_balance,
+            account_type=acc_type,
+        )
+        account_info = {
+            "name": acc_data["name"],
+            "balance": new_balance,
+            "delta": delta,
+            "icon": acc_data["icon"],
+        }
 
     return {
         "id": tx_id,
@@ -181,12 +239,14 @@ async def add_transaction(
         "category": category,
         "amount": amount,
         "description": description,
+        "account_name": account_name,
+        "account_info": account_info,
         "created_at": datetime.now().isoformat(),
     }
 
 
 async def delete_last_transaction(user_id: int) -> Optional[dict]:
-    """Delete the most recent transaction for a user."""
+    """Delete the most recent transaction for a user and revert account balance."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
@@ -204,7 +264,17 @@ async def delete_last_transaction(user_id: int) -> Optional[dict]:
         tx = dict(row)
         await db.execute("DELETE FROM transactions WHERE id = ?", (tx["id"],))
         await db.commit()
-        return tx
+
+    if tx.get("account_name"):
+        acc_name = tx["account_name"]
+        user_accounts = await get_accounts(user_id)
+        current_acc = next((a for a in user_accounts if a["name"].lower() == acc_name.lower()), None)
+        if current_acc:
+            reverse_delta = -tx["amount"] if tx["type"] == "income" else tx["amount"]
+            new_balance = current_acc["balance"] + reverse_delta
+            await add_or_update_account(user_id, acc_name, new_balance, current_acc["account_type"])
+
+    return tx
 
 
 async def get_transactions(
@@ -1086,7 +1156,7 @@ async def delete_account(user_id: int, name: str) -> bool:
 
 
 async def toggle_transaction_type(tx_id: int) -> Optional[dict]:
-    """Toggle transaction type between income and expense."""
+    """Toggle transaction type between income and expense and adjust account balance."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute("SELECT * FROM transactions WHERE id = ?", (tx_id,))
@@ -1094,13 +1164,14 @@ async def toggle_transaction_type(tx_id: int) -> Optional[dict]:
         if not row:
             return None
         tx = dict(row)
-        new_type = "income" if tx["type"] == "expense" else "expense"
+        old_type = tx["type"]
+        new_type = "income" if old_type == "expense" else "expense"
 
         # Update category display
         new_cat = tx["category"]
-        if tx["type"] == "expense" and new_cat in EXPENSE_CATEGORIES.values():
+        if old_type == "expense" and new_cat in EXPENSE_CATEGORIES.values():
             new_cat = INCOME_CATEGORIES.get("lainnya", "📦 Lainnya")
-        elif tx["type"] == "income" and new_cat in INCOME_CATEGORIES.values():
+        elif old_type == "income" and new_cat in INCOME_CATEGORIES.values():
             new_cat = EXPENSE_CATEGORIES.get("lainnya", "📦 Lainnya")
 
         await db.execute(
@@ -1110,4 +1181,27 @@ async def toggle_transaction_type(tx_id: int) -> Optional[dict]:
         await db.commit()
         tx["type"] = new_type
         tx["category"] = new_cat
-        return tx
+
+    # Adjust account balance if linked
+    account_info = None
+    account_name = tx.get("account_name")
+    if account_name:
+        user_id = tx["telegram_user_id"]
+        user_accounts = await get_accounts(user_id)
+        current_acc = next((a for a in user_accounts if a["name"].lower() == account_name.lower()), None)
+        if current_acc:
+            balance_diff = (2 * tx["amount"]) if new_type == "income" else (-2 * tx["amount"])
+            new_balance = current_acc["balance"] + balance_diff
+            acc_data = await add_or_update_account(
+                user_id=user_id,
+                name=account_name,
+                balance=new_balance,
+                account_type=current_acc["account_type"],
+            )
+            account_info = {
+                "name": acc_data["name"],
+                "balance": new_balance,
+                "icon": acc_data["icon"],
+            }
+    tx["account_info"] = account_info
+    return tx
