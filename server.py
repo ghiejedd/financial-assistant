@@ -284,6 +284,43 @@ async def api_save_account(request: Request):
 
 
 # ══════════════════════════════════════════════
+# Transaction Management API
+# ══════════════════════════════════════════════
+
+@app.put("/api/transactions/{tx_id}")
+async def api_edit_transaction(tx_id: int, request: Request):
+    """Edit a transaction's amount, description, or type."""
+    body = await request.json()
+    user_ids = await db.get_all_user_ids()
+    if not user_ids:
+        return {"error": "No user found."}
+    uid = user_ids[0]
+    tx = await db.edit_transaction(
+        user_id=uid,
+        tx_id=tx_id,
+        new_amount=body.get("amount"),
+        new_description=body.get("description"),
+        new_type=body.get("type"),
+    )
+    if not tx:
+        return {"error": "Transaction not found."}
+    return tx
+
+
+@app.delete("/api/transactions/{tx_id}")
+async def api_delete_transaction(tx_id: int):
+    """Delete a specific transaction by ID."""
+    user_ids = await db.get_all_user_ids()
+    if not user_ids:
+        return {"error": "No user found."}
+    uid = user_ids[0]
+    tx = await db.delete_transaction_by_id(uid, tx_id)
+    if not tx:
+        return {"error": "Transaction not found."}
+    return {"success": True, "deleted": tx}
+
+
+# ══════════════════════════════════════════════
 # Server-Sent Events (SSE)
 # ══════════════════════════════════════════════
 

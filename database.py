@@ -277,6 +277,85 @@ async def delete_last_transaction(user_id: int) -> Optional[dict]:
     return tx
 
 
+async def delete_transaction_by_id(user_id: int, tx_id: int) -> Optional[dict]:
+    """Delete a specific transaction by ID and revert account balance."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM transactions WHERE id = ? AND telegram_user_id = ?",
+            (tx_id, user_id),
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None
+
+        tx = dict(row)
+        await db.execute("DELETE FROM transactions WHERE id = ?", (tx_id,))
+        await db.commit()
+
+    if tx.get("account_name"):
+        acc_name = tx["account_name"]
+        user_accounts = await get_accounts(user_id)
+        current_acc = next((a for a in user_accounts if a["name"].lower() == acc_name.lower()), None)
+        if current_acc:
+            reverse_delta = -tx["amount"] if tx["type"] == "income" else tx["amount"]
+            new_balance = current_acc["balance"] + reverse_delta
+            await add_or_update_account(user_id, acc_name, new_balance, current_acc["account_type"])
+
+    return tx
+
+
+async def edit_transaction(
+    user_id: int,
+    tx_id: int,
+    new_amount: Optional[float] = None,
+    new_description: Optional[str] = None,
+    new_type: Optional[str] = None,
+) -> Optional[dict]:
+    """Edit a transaction's amount, description, or type. Adjusts account balance if needed."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM transactions WHERE id = ? AND telegram_user_id = ?",
+            (tx_id, user_id),
+        )
+        row = await cursor.fetchone()
+        if not row:
+            return None
+
+        tx = dict(row)
+        old_amount = tx["amount"]
+        old_type = tx["type"]
+
+        updated_amount = new_amount if new_amount is not None else old_amount
+        updated_description = new_description if new_description is not None else tx["description"]
+        updated_type = new_type if new_type is not None else old_type
+
+        await db.execute(
+            "UPDATE transactions SET amount = ?, description = ?, type = ? WHERE id = ?",
+            (updated_amount, updated_description, updated_type, tx_id),
+        )
+        await db.commit()
+
+    # Adjust account balance if linked
+    account_name = tx.get("account_name")
+    if account_name:
+        user_accounts = await get_accounts(user_id)
+        current_acc = next((a for a in user_accounts if a["name"].lower() == account_name.lower()), None)
+        if current_acc:
+            # Revert old transaction effect
+            old_delta = old_amount if old_type == "income" else -old_amount
+            # Apply new transaction effect
+            new_delta = updated_amount if updated_type == "income" else -updated_amount
+            balance_diff = new_delta - old_delta
+            new_balance = current_acc["balance"] + balance_diff
+            await add_or_update_account(user_id, account_name, new_balance, current_acc["account_type"])
+
+    tx["amount"] = updated_amount
+    tx["description"] = updated_description
+    tx["type"] = updated_type
+    return tx
+
 async def get_transactions(
     user_id: int,
     limit: int = 20,

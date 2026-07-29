@@ -921,6 +921,174 @@ async def cmd_hapusakun(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Akun `{name}` tidak ditemukan.", parse_mode="Markdown")
 
 
+# ══════════════════════════════════════════════
+# Transaction Management Commands
+# ══════════════════════════════════════════════
+
+async def cmd_daftar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /daftar command — list recent transactions with IDs."""
+    user_id = update.effective_user.id
+    limit = 10
+    if context.args:
+        try:
+            limit = min(int(context.args[0]), 20)
+        except ValueError:
+            pass
+
+    transactions = await db.get_transactions(user_id, limit=limit)
+
+    if not transactions:
+        await update.message.reply_text(
+            "📭 Belum ada transaksi.\n_Coba kirim pesan seperti_ `makan 25rb bri`",
+            parse_mode="Markdown",
+        )
+        return
+
+    lines = ["📋 **Daftar Transaksi Terakhir**\n━━━━━━━━━━━━━━━━━━━━\n"]
+
+    for tx in transactions:
+        type_emoji = "💵" if tx["type"] == "income" else "💸"
+        acc_tag = f" [{tx['account_name']}]" if tx.get("account_name") else ""
+        date_str = tx["created_at"][:10] if tx.get("created_at") else ""
+        lines.append(
+            f"{type_emoji} `#{tx['id']}` — **{format_rupiah(tx['amount'])}**\n"
+            f"   {tx.get('description', '-')}{acc_tag} ({date_str})\n"
+        )
+
+    lines.append(
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "✏️ Edit: `/edit [id] [jumlah_baru]`\n"
+        "🗑️ Hapus: `/hapusid [id]`"
+    )
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+
+async def cmd_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /edit command — edit a transaction's amount or description."""
+    if len(context.args) < 2:
+        await update.message.reply_text(
+            "⚠️ Format:\n"
+            "• `/edit [id] [jumlah_baru]`\n"
+            "• `/edit [id] desc [deskripsi_baru]`\n\n"
+            "Contoh:\n"
+            "• `/edit 5 50rb` → Ubah jumlah transaksi #5 jadi Rp 50.000\n"
+            "• `/edit 5 desc makan siang` → Ubah deskripsi\n\n"
+            "💡 _Ketik /daftar untuk lihat ID transaksi_",
+            parse_mode="Markdown",
+        )
+        return
+
+    user_id = update.effective_user.id
+
+    try:
+        tx_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("❌ ID harus berupa angka. Ketik `/daftar` untuk lihat.", parse_mode="Markdown")
+        return
+
+    # Check if editing description
+    if context.args[1].lower() == "desc":
+        new_desc = " ".join(context.args[2:]).strip()
+        if not new_desc:
+            await update.message.reply_text("⚠️ Deskripsi tidak boleh kosong.", parse_mode="Markdown")
+            return
+        tx = await db.edit_transaction(user_id, tx_id, new_description=new_desc)
+    else:
+        # Editing amount
+        amount_text = " ".join(context.args[1:])
+        new_amount = parse_amount(amount_text)
+        if new_amount is None or new_amount <= 0:
+            await update.message.reply_text("❌ Jumlah tidak valid.", parse_mode="Markdown")
+            return
+        tx = await db.edit_transaction(user_id, tx_id, new_amount=new_amount)
+
+    if not tx:
+        await update.message.reply_text(f"❌ Transaksi `#{tx_id}` tidak ditemukan.", parse_mode="Markdown")
+        return
+
+    type_emoji = "💵" if tx["type"] == "income" else "💸"
+    type_text = "Pemasukan" if tx["type"] == "income" else "Pengeluaran"
+    await update.message.reply_text(
+        f"✅ **Transaksi #{tx_id} Berhasil Diedit!**\n\n"
+        f"{type_emoji} Tipe: {type_text}\n"
+        f"💰 Jumlah: **{format_rupiah(tx['amount'])}**\n"
+        f"📝 Deskripsi: {tx['description']}",
+        parse_mode="Markdown",
+    )
+
+    if sse_notify:
+        await sse_notify({"event": "new_transaction", "user_id": user_id})
+        await sse_notify({"event": "account_updated", "user_id": user_id})
+
+
+async def cmd_hapusid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /hapusid command — delete a transaction by ID."""
+    if not context.args:
+        await update.message.reply_text(
+            "⚠️ Format: `/hapusid [id]`\n"
+            "Contoh: `/hapusid 5`\n\n"
+            "💡 _Ketik /daftar untuk lihat ID transaksi_",
+            parse_mode="Markdown",
+        )
+        return
+
+    user_id = update.effective_user.id
+
+    try:
+        tx_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("❌ ID harus berupa angka.", parse_mode="Markdown")
+        return
+
+    tx = await db.delete_transaction_by_id(user_id, tx_id)
+    if not tx:
+        await update.message.reply_text(f"❌ Transaksi `#{tx_id}` tidak ditemukan.", parse_mode="Markdown")
+        return
+
+    type_text = "Pemasukan" if tx["type"] == "income" else "Pengeluaran"
+    await update.message.reply_text(
+        f"🗑️ **Transaksi #{tx_id} Dihapus!**\n\n"
+        f"• {type_text}: {format_rupiah(tx['amount'])}\n"
+        f"• Deskripsi: {tx['description']}",
+        parse_mode="Markdown",
+    )
+
+    if sse_notify:
+        await sse_notify({"event": "transaction_deleted", "user_id": user_id})
+        await sse_notify({"event": "account_updated", "user_id": user_id})
+
+
+async def cmd_editakun(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /editakun command — set account balance directly."""
+    if len(context.args) < 2:
+        await update.message.reply_text(
+            "⚠️ Format: `/editakun [nama] [saldo_baru]`\n"
+            "Contoh: `/editakun BRI 5jt`\n"
+            "Contoh: `/editakun GoPay 500rb`",
+            parse_mode="Markdown",
+        )
+        return
+
+    user_id = update.effective_user.id
+    new_balance = parse_amount(context.args[-1])
+    if new_balance is None:
+        await update.message.reply_text("❌ Jumlah saldo tidak valid.", parse_mode="Markdown")
+        return
+
+    name = " ".join(context.args[:-1]).strip()
+    acc = await db.add_or_update_account(user_id, name, new_balance)
+
+    await update.message.reply_text(
+        f"✅ **Saldo Akun Diperbarui!**\n\n"
+        f"{acc['icon']} **{acc['name']}**\n"
+        f"💰 Saldo Baru: **{format_rupiah(acc['balance'])}**",
+        parse_mode="Markdown",
+    )
+
+    if sse_notify:
+        await sse_notify({"event": "account_updated", "user_id": user_id})
+
+
 def create_bot(token: str):
     """Create and configure the Telegram bot application."""
     req = HTTPXRequest(
@@ -963,6 +1131,12 @@ def create_bot(token: str):
     app.add_handler(CommandHandler(["akun", "rekening"], cmd_akun))
     app.add_handler(CommandHandler("tambahakun", cmd_tambahakun))
     app.add_handler(CommandHandler("hapusakun", cmd_hapusakun))
+    app.add_handler(CommandHandler("editakun", cmd_editakun))
+
+    # Transaction management commands
+    app.add_handler(CommandHandler(["daftar", "list"], cmd_daftar))
+    app.add_handler(CommandHandler("edit", cmd_edit))
+    app.add_handler(CommandHandler("hapusid", cmd_hapusid))
 
     # Callback handler for inline keyboards
     app.add_handler(CallbackQueryHandler(handle_callback))
