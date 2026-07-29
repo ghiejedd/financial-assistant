@@ -146,21 +146,15 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🎯 **Cara pakai:**\n"
         "Tinggal ketik transaksi kamu, aku parse otomatis:\n\n"
         "💸 _Pengeluaran:_\n"
-        '• `makan siang 35rb`\n'
-        '• `gojek 15k`\n'
-        '• `belanja shopee 250rb`\n\n'
+        '• `makan siang 35rb bri`\n'
+        '• `gojek 15k gopay`\n'
+        '• `belanja shopee 250rb bca`\n\n'
         "💵 _Pemasukan:_\n"
-        '• `gaji 5jt`\n'
-        '• `freelance project 2.5jt`\n'
-        '• `bonus 500rb`\n\n'
-        "📋 **Commands:**\n"
-        "/ringkasan — Ringkasan bulan ini\n"
-        "/hari — Pengeluaran hari ini\n"
-        "/kategori — Breakdown per kategori\n"
-        "/export — Export ke Excel\n"
-        "/hapus — Hapus transaksi terakhir\n"
-        "/dashboard — Link dashboard\n"
-        "/help — Bantuan lengkap"
+        '• `gaji 5jt bsi`\n'
+        '• `+ freelance 2.5jt mandiri`\n'
+        '• `bonus 500rb bca`\n\n'
+        "💡 Sebut nama rekening (BRI, BSI, BCA, GoPay, dll) dan saldo otomatis terupdate!\n\n"
+        "📋 Ketik /help untuk daftar semua perintah"
     )
     await update.message.reply_text(welcome, parse_mode="Markdown")
 
@@ -169,25 +163,59 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command."""
     help_text = (
         "📖 **Panduan Financial Assistant**\n\n"
-        "**Format Input:**\n"
-        "Cukup ketik deskripsi + nominal:\n"
-        '• `makan 35rb` → 🍔 Makanan Rp 35.000\n'
-        '• `gojek 15k` → 🚗 Transport Rp 15.000\n'
-        '• `gaji 5jt` → 💼 Gaji Rp 5.000.000\n'
-        '• `netflix 54rb` → 🎮 Hiburan Rp 54.000\n\n'
-        "**Format Angka:**\n"
+
+        "**💬 Format Input Natural:**\n"
+        "Cukup ketik deskripsi + nominal + nama rekening:\n"
+        '• `makan 35rb bri` → 🍔 Makanan, potong saldo BRI\n'
+        '• `gojek 15k gopay` → 🚗 Transport, potong saldo GoPay\n'
+        '• `gaji 5jt bsi` → 💼 Gaji, tambah saldo BSI\n'
+        '• `netflix 54rb` → 🎮 Hiburan (tanpa rekening)\n\n'
+
+        "**🔢 Format Angka:**\n"
         "• `rb` / `ribu` / `k` = ribuan\n"
         "• `jt` / `juta` = jutaan\n"
         "• `1.500.000` = langsung\n\n"
-        "**Commands:**\n"
-        "/tambah `[deskripsi] [nominal]` — Tambah pengeluaran\n"
-        "/masuk `[deskripsi] [nominal]` — Tambah pemasukan\n"
+
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "📋 **DAFTAR PERINTAH**\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        "**📝 Catat Transaksi:**\n"
+        "/tambah `[desc] [nominal]` — Pengeluaran\n"
+        "/masuk `[desc] [nominal]` — Pemasukan\n\n"
+
+        "**📊 Laporan:**\n"
         "/ringkasan — Ringkasan 30 hari\n"
         "/hari — Pengeluaran hari ini\n"
-        "/kategori — Breakdown kategori\n"
-        "/export — Download Excel\n"
+        "/kategori — Breakdown per kategori\n"
+        "/analisis — Analisis perilaku keuangan\n"
+        "/export — Download Excel\n\n"
+
+        "**✏️ Edit & Kelola Transaksi:**\n"
+        "/daftar — Lihat transaksi + ID\n"
+        "/edit `[id] [jumlah_baru]` — Edit jumlah\n"
+        "/edit `[id] desc [teks]` — Edit deskripsi\n"
         "/hapus — Hapus transaksi terakhir\n"
-        "/dashboard — Buka dashboard\n"
+        "/hapusid `[id]` — Hapus transaksi spesifik\n\n"
+
+        "**💳 Rekening & Aset:**\n"
+        "/rekening — Lihat semua rekening & total\n"
+        "/tambahakun `[nama] [saldo]` — Tambah akun\n"
+        "/editakun `[nama] [saldo_baru]` — Edit saldo\n"
+        "/hapusakun `[nama]` — Hapus akun\n\n"
+
+        "**🎯 Tabungan:**\n"
+        "/tabung `[nama] [target]` — Buat goal\n"
+        "/setor `[nama] [jumlah]` — Setor tabungan\n"
+        "/tarik `[nama] [jumlah]` — Tarik tabungan\n"
+        "/tabungan — Lihat semua tabungan\n\n"
+
+        "**💰 Budget:**\n"
+        "/budget `[kategori] [limit]` — Set budget\n\n"
+
+        "**🌐 Lainnya:**\n"
+        "/dashboard — Buka web dashboard\n"
+        "/help — Panduan ini"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
