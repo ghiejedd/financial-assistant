@@ -215,7 +215,8 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         "**🌐 Lainnya:**\n"
         "/dashboard — Buka web dashboard\n"
-        "/help — Panduan ini"
+        "/help — Panduan ini\n\n"
+        "🔗 **Dashboard:** https://tinyurl.com/personal-fintant"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
@@ -371,16 +372,11 @@ async def cmd_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /dashboard command."""
-    from dotenv import load_dotenv
-    import os
-    load_dotenv()
-    port = os.getenv("DASHBOARD_PORT", "8000")
-
     await update.message.reply_text(
-        f"📊 **Dashboard Keuangan Kamu**\n\n"
-        f"🔗 Buka di browser:\n"
-        f"`http://localhost:{port}`\n\n"
-        f"_Dashboard update real-time setiap kamu chat!_ ⚡",
+        "📊 **Dashboard Keuangan Kamu**\n\n"
+        "🔗 Buka di browser:\n"
+        "https://tinyurl.com/personal-fintant\n\n"
+        "_Dashboard update real-time setiap kamu chat!_ ⚡",
         parse_mode="Markdown",
     )
 
