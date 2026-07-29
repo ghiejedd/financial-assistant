@@ -45,7 +45,7 @@ def main():
         sys.exit(1)
 
     host = os.getenv("DASHBOARD_HOST", "0.0.0.0")
-    port = int(os.getenv("DASHBOARD_PORT", "8000"))
+    port = int(os.getenv("PORT", os.getenv("DASHBOARD_PORT", "8000")))
 
     # ── Initialize database ──
     asyncio.run(db.init_db())
