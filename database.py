@@ -451,32 +451,32 @@ async def get_summary(user_id: int, days: int = 30) -> dict:
         # Total income
         cursor = await db.execute(
             """
-            SELECT COALESCE(SUM(amount), 0) FROM transactions
+            SELECT COALESCE(SUM(amount), 0) as val FROM transactions
             WHERE telegram_user_id = %s AND type = 'income' AND created_at >= %s
             """,
             (user_id, since),
         )
-        total_income = (await cursor.fetchone())[0]
+        total_income = (await cursor.fetchone())['val']
 
         # Total expense
         cursor = await db.execute(
             """
-            SELECT COALESCE(SUM(amount), 0) FROM transactions
+            SELECT COALESCE(SUM(amount), 0) as val FROM transactions
             WHERE telegram_user_id = %s AND type = 'expense' AND created_at >= %s
             """,
             (user_id, since),
         )
-        total_expense = (await cursor.fetchone())[0]
+        total_expense = (await cursor.fetchone())['val']
 
         # Transaction count
         cursor = await db.execute(
             """
-            SELECT COUNT(*) FROM transactions
+            SELECT COUNT(*) as val FROM transactions
             WHERE telegram_user_id = %s AND created_at >= %s
             """,
             (user_id, since),
         )
-        tx_count = (await cursor.fetchone())[0]
+        tx_count = (await cursor.fetchone())['val']
 
     balance = total_income - total_expense
     savings_rate = (balance / total_income * 100) if total_income > 0 else 0
@@ -942,7 +942,6 @@ async def get_budget_vs_actual(user_id: int) -> list[dict]:
         db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         # Get budgets
-        db.row_factory = aiosqlite.Row
         cursor = await db.execute(
             "SELECT * FROM budgets WHERE telegram_user_id = %s",
             (user_id,),
@@ -1050,20 +1049,19 @@ async def get_behavior_analysis(user_id: int) -> dict:
         # Last month totals
         cursor = await db.execute(
             """
-            SELECT COALESCE(SUM(CASE WHEN type='expense' THEN amount END), 0)
+            SELECT COALESCE(SUM(CASE WHEN type='expense' THEN amount END), 0) as val
             FROM transactions
             WHERE telegram_user_id = %s AND created_at >= %s AND created_at < %s
             """,
             (user_id, last_month_start.isoformat(), this_month_start.isoformat()),
         )
-        last_month_total_expense = (await cursor.fetchone())[0]
+        last_month_total_expense = (await cursor.fetchone())['val']
 
         # Daily average this month
         days_elapsed = max(1, now.day)
         daily_avg = total_expense / days_elapsed
 
         # Budget data
-        db.row_factory = aiosqlite.Row
         cursor = await db.execute(
             "SELECT * FROM budgets WHERE telegram_user_id = %s",
             (user_id,),
