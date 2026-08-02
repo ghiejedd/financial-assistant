@@ -1,6 +1,6 @@
 """
 Database layer for Financial Assistant.
-Async SQLite database manager using aiosqlite.
+Async PostgreSQL database manager using psycopg connection pool.
 """
 
 import psycopg
