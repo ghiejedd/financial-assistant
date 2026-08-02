@@ -56,7 +56,7 @@ CATEGORY_KEYWORDS = {
         "sarapan", "lunch", "dinner", "breakfast", "resto", "warung",
         "bakso", "sate", "ayam", "noodle", "mie", "pizza", "burger",
         "es", "teh", "juice", "boba", "starbucks", "kfc", "mcd",
-        "gopay food", "grabfood", "shopeefood", "gofood", "cemilan",
+        "gopay food", "grabfood", "shopeefood", "gofood", "cemilan", "warmindo", "ngopi",
     ],
     "transport": [
         "gojek", "grab", "uber", "taxi", "taksi", "ojek", "bensin",
@@ -71,7 +71,7 @@ CATEGORY_KEYWORDS = {
     "tagihan": [
         "listrik", "air", "pdam", "wifi", "internet", "pulsa", "paket data",
         "telkom", "indihome", "sewa", "kos", "kontrakan", "rent",
-        "cicilan", "kredit", "asuransi", "pajak", "iuran",
+        "cicilan", "kredit", "asuransi", "pajak", "iuran", "kuota",
     ],
     "hiburan": [
         "game", "netflix", "spotify", "youtube", "bioskop", "cinema",
@@ -84,7 +84,7 @@ CATEGORY_KEYWORDS = {
     ],
     "pendidikan": [
         "buku", "kursus", "course", "udemy", "les", "sekolah",
-        "kuliah", "spp", "seminar", "training", "workshop",
+        "kuliah", "spp", "ukt", "seminar", "training", "workshop",
     ],
     "investasi": [
         "saham", "reksadana", "crypto", "bitcoin", "nabung", "deposito",
