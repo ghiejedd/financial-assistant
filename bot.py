@@ -429,6 +429,13 @@ async def process_transaction(
     # Detect account mentioned in text
     account_name = await db.detect_account_in_text(user_id, text)
 
+    if account_name:
+        pattern = re.compile(r'\b' + re.escape(account_name) + r'\b', re.IGNORECASE)
+        desc = pattern.sub('', desc).strip()
+        desc = re.sub(r'\s+', ' ', desc).strip()
+        if not desc:
+            desc = "Transaksi"
+
     # Save to database
     tx = await db.add_transaction(
         user_id=user_id,
@@ -491,9 +498,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not text:
         return
 
-    result = await process_transaction(update, text)
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    
+    success_count = 0
+    failed_lines = []
 
-    if not result:
+    for line in lines:
+        result = await process_transaction(update, line)
+        if result:
+            success_count += 1
+        else:
+            failed_lines.append(line)
+
+    if failed_lines and len(lines) > 1:
+        msg = f"❌ **Gagal memproses {len(failed_lines)} baris:**\n"
+        for f_line in failed_lines:
+            msg += f"• `{f_line}`\n"
+        await update.message.reply_text(msg, parse_mode="Markdown")
+    elif not success_count and len(lines) == 1:
         await update.message.reply_text(
             "🤔 Aku gak bisa baca transaksi dari pesan itu.\n\n"
             "Coba format:\n"
@@ -591,17 +613,30 @@ async def cmd_tabung(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    amount = parse_amount(context.args[-1])
+    args = context.args
+    goal_type = "personal"
+    if args[-1].lower() in ["investasi", "investing", "reksadana", "saham"]:
+        goal_type = "investment"
+        args = args[:-1]
+    elif args[-1].lower() in ["bersama", "joint"]:
+        goal_type = "joint"
+        args = args[:-1]
+
+    if len(args) < 2:
+        await update.message.reply_text("⚠️ Format tidak valid. Pastikan ada nama dan nominal target.", parse_mode="Markdown")
+        return
+
+    amount = parse_amount(args[-1])
     if amount is None:
         await update.message.reply_text("⚠️ Nominal tidak valid. Contoh: `5jt`, `500rb`", parse_mode="Markdown")
         return
 
-    name = " ".join(context.args[:-1]).strip().title()
+    name = " ".join(args[:-1]).strip().title()
     if not name:
         name = "Tabungan"
 
     user_id = update.effective_user.id
-    goal = await db.add_savings_goal(user_id, name, amount)
+    goal = await db.add_savings_goal(user_id, name, amount, goal_type=goal_type)
 
     await update.message.reply_text(
         f"🏦 **Goal Tabungan Dibuat!**\n\n"
@@ -708,20 +743,41 @@ async def cmd_tabungan(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    lines = ["🏦 **Goal Tabungan Kamu**\n━━━━━━━━━━━━━━━━━━━━\n"]
+    grouped_goals = {"personal": [], "investment": [], "joint": []}
+    for g in goals:
+        g_type = g.get("goal_type", "personal")
+        if g_type not in grouped_goals:
+            g_type = "personal"
+        grouped_goals[g_type].append(g)
+
+    lines = []
     total_saved = 0
     total_target = 0
 
-    for g in goals:
-        bar_len = int(min(g["progress"], 100) / 5)
-        bar = "█" * bar_len + "░" * (20 - bar_len)
-        lines.append(
-            f"{g['icon']} **{g['name']}**\n"
-            f"`{bar}` {g['progress']:.1f}%\n"
-            f"{format_rupiah(g['current_amount'])} / {format_rupiah(g['target_amount'])}\n"
-        )
-        total_saved += g["current_amount"]
-        total_target += g["target_amount"]
+    group_titles = {
+        "personal": "🏦 **Tabungan Pribadi**",
+        "investment": "📈 **Portofolio Investasi**",
+        "joint": "🤝 **Tabungan Bersama**"
+    }
+
+    for g_type, group in grouped_goals.items():
+        if not group:
+            continue
+            
+        lines.append(f"{group_titles[g_type]}\n━━━━━━━━━━━━━━━━━━━━\n")
+        
+        for g in group:
+            bar_len = int(min(g["progress"], 100) / 5)
+            bar = "█" * bar_len + "░" * (20 - bar_len)
+            lines.append(
+                f"{g['icon']} **{g['name']}**\n"
+                f"`{bar}` {g['progress']:.1f}%\n"
+                f"{format_rupiah(g['current_amount'])} / {format_rupiah(g['target_amount'])}\n"
+            )
+            total_saved += g["current_amount"]
+            total_target += g["target_amount"]
+            
+        lines.append("")
 
     overall = round(total_saved / total_target * 100, 1) if total_target > 0 else 0
     lines.append(
@@ -729,7 +785,7 @@ async def cmd_tabungan(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💰 **Total: {format_rupiah(total_saved)} / {format_rupiah(total_target)} ({overall}%)**"
     )
 
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+    await update.message.reply_text("\n".join(lines).strip(), parse_mode="Markdown")
 
 
 # ══════════════════════════════════════════════

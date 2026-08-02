@@ -154,6 +154,10 @@ async def init_db():
             await db.execute("ALTER TABLE transactions ADD COLUMN account_name TEXT")
         except Exception:
             pass
+        try:
+            await db.execute("ALTER TABLE savings_goals ADD COLUMN goal_type TEXT DEFAULT 'personal'")
+        except Exception:
+            pass
         await db.commit()
     
     os.makedirs(EXPORTS_DIR, exist_ok=True)
@@ -690,17 +694,17 @@ def pick_savings_icon(name: str) -> str:
 
 
 async def add_savings_goal(
-    user_id: int, name: str, target_amount: float
+    user_id: int, name: str, target_amount: float, goal_type: str = "personal"
 ) -> dict:
     """Create a new savings goal."""
     icon = pick_savings_icon(name)
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
             """
-            INSERT INTO savings_goals (telegram_user_id, name, target_amount, icon, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO savings_goals (telegram_user_id, name, target_amount, icon, created_at, goal_type)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (user_id, name, target_amount, icon, datetime.now().isoformat()),
+            (user_id, name, target_amount, icon, datetime.now().isoformat(), goal_type),
         )
         await db.commit()
         return {
@@ -710,6 +714,7 @@ async def add_savings_goal(
             "current_amount": 0,
             "icon": icon,
             "progress": 0,
+            "goal_type": goal_type,
         }
 
 
