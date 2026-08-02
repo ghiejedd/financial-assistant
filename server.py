@@ -6,7 +6,14 @@ Serves the real-time dashboard and API endpoints.
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime as _dt, timedelta, timezone
+WIB = timezone(timedelta(hours=7))
+class datetime(_dt):
+    @classmethod
+    def now(cls, tz=None):
+        if tz is not None:
+            return super().now(tz)
+        return super().now(WIB).replace(tzinfo=None)
 from typing import Optional
 
 from fastapi import FastAPI, Query, Request

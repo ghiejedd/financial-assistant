@@ -5,10 +5,19 @@ Async SQLite database manager using aiosqlite.
 
 import aiosqlite
 import os
-from datetime import datetime, timedelta
+from datetime import datetime as _dt, timedelta, timezone
 from typing import Optional
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+
+WIB = timezone(timedelta(hours=7))
+
+class datetime(_dt):
+    @classmethod
+    def now(cls, tz=None):
+        if tz is not None:
+            return super().now(tz)
+        return super().now(WIB).replace(tzinfo=None)
 
 DB_PATH = os.getenv(
     "DB_PATH",
