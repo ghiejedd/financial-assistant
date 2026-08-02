@@ -106,7 +106,7 @@ async def init_db():
     """Initialize the database and create tables if they don't exist."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         await db.execute("""
             CREATE TABLE IF NOT EXISTS transactions (
@@ -217,7 +217,7 @@ async def add_transaction(
     """Add a new transaction and return it, updating account balance if account_name is provided."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             """
@@ -271,7 +271,7 @@ async def delete_last_transaction(user_id: int) -> Optional[dict]:
     """Delete the most recent transaction for a user and revert account balance."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             """
@@ -305,7 +305,7 @@ async def delete_transaction_by_id(user_id: int, tx_id: int) -> Optional[dict]:
     """Delete a specific transaction by ID and revert account balance."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             "SELECT * FROM transactions WHERE id = %s AND telegram_user_id = %s",
@@ -344,7 +344,7 @@ async def edit_transaction(
     """Edit a transaction's details. Adjusts account balances if needed."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             "SELECT * FROM transactions WHERE id = %s AND telegram_user_id = %s",
@@ -433,7 +433,7 @@ async def get_transactions(
 
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(query, params)
         rows = await cursor.fetchall()
@@ -446,7 +446,7 @@ async def get_summary(user_id: int, days: int = 30) -> dict:
 
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         # Total income
         cursor = await db.execute(
@@ -497,7 +497,7 @@ async def get_today_spending(user_id: int) -> dict:
 
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
 
         cursor = await db.execute(
@@ -524,7 +524,7 @@ async def get_daily_spending(user_id: int, days: int = 30) -> list[dict]:
 
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             """
@@ -562,7 +562,7 @@ async def get_category_breakdown(user_id: int, days: int = 30) -> list[dict]:
 
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             """
@@ -584,7 +584,7 @@ async def get_monthly_trend(user_id: int, months: int = 6) -> list[dict]:
 
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             """
@@ -606,7 +606,7 @@ async def get_all_user_ids() -> list[int]:
     """Get all unique user IDs from the database."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             "SELECT DISTINCT telegram_user_id FROM transactions"
@@ -767,7 +767,7 @@ async def add_savings_goal(
     icon = pick_savings_icon(name)
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             """
@@ -794,7 +794,7 @@ async def deposit_savings(
     """Deposit money into a savings goal."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             "SELECT * FROM savings_goals WHERE telegram_user_id = %s AND LOWER(name) = LOWER(%s)",
@@ -831,7 +831,7 @@ async def withdraw_savings(
     """Withdraw money from a savings goal."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             "SELECT * FROM savings_goals WHERE telegram_user_id = %s AND LOWER(name) = LOWER(%s)",
@@ -866,7 +866,7 @@ async def get_savings_goals(user_id: int) -> list[dict]:
     """Get all savings goals for a user."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             "SELECT * FROM savings_goals WHERE telegram_user_id = %s ORDER BY created_at ASC",
@@ -885,7 +885,7 @@ async def delete_savings_goal(user_id: int, goal_name: str) -> bool:
     """Delete a savings goal by name."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             "DELETE FROM savings_goals WHERE telegram_user_id = %s AND LOWER(name) = LOWER(%s)",
@@ -903,7 +903,7 @@ async def set_budget(user_id: int, category: str, monthly_limit: float) -> dict:
     """Set or update a monthly budget for a category."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         await db.execute(
             """
@@ -922,7 +922,7 @@ async def get_budgets(user_id: int) -> list[dict]:
     """Get all budget configurations for a user."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             "SELECT * FROM budgets WHERE telegram_user_id = %s ORDER BY category ASC",
@@ -939,7 +939,7 @@ async def get_budget_vs_actual(user_id: int) -> list[dict]:
 
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         # Get budgets
         db.row_factory = aiosqlite.Row
@@ -1005,7 +1005,7 @@ async def get_behavior_analysis(user_id: int) -> dict:
 
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         # This month spending by category
         cursor = await db.execute(
@@ -1227,7 +1227,7 @@ async def get_trend_data(user_id: int, period: str = "daily") -> list[dict]:
     """Get trend data based on period: daily, monthly, or annual."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         if period == "daily":
             return await get_daily_spending(user_id, days=30)
@@ -1297,7 +1297,7 @@ async def add_or_update_account(
     icon = pick_account_icon(name)
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         await db.execute(
             """
@@ -1316,7 +1316,7 @@ async def get_accounts(user_id: int) -> list[dict]:
     """Get all accounts and total balance for a user."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             "SELECT * FROM accounts WHERE telegram_user_id = %s ORDER BY balance DESC",
@@ -1330,7 +1330,7 @@ async def delete_account(user_id: int, name: str) -> bool:
     """Delete an account by name."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             "DELETE FROM accounts WHERE telegram_user_id = %s AND LOWER(name) = LOWER(%s)",
@@ -1344,7 +1344,7 @@ async def toggle_transaction_type(tx_id: int) -> Optional[dict]:
     """Toggle transaction type between income and expense and adjust account balance."""
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb%ssslmode=require"
+        db_url = "postgresql://neondb_owner:npg_TcbPujgh81ty@ep-noisy-haze-axb17xuz.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute("SELECT * FROM transactions WHERE id = %s", (tx_id,))
         row = await cursor.fetchone()
