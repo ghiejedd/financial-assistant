@@ -637,6 +637,7 @@ async function updateTransactions(highlight = false) {
                 </td>
                 <td>${tx.category}</td>
                 <td class="hide-mobile">${tx.description || '-'}</td>
+                <td style="text-align: right; white-space: nowrap;">
                     <span class="tx-amount ${typeClass}">${isIncome ? '+' : '-'} ${formatRupiahFull(tx.amount)}</span>
                     <button class="btn-icon" onclick="openEditTxModal(${txJson})" style="margin-left: 8px; background: none; border: none; cursor: pointer; opacity: 0.7;" title="Edit Transaksi">
                         ✏️
@@ -917,3 +918,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     setInterval(() => refreshDashboard(false), 60000);
 });
+
+
+
+// ═══════════════════════════════════════════
+// Delete Transaction Handling
+// ═══════════════════════════════════════════
+
+async function deleteTransaction(txId) {
+    if (!confirm('Apakah kamu yakin ingin menghapus transaksi ini? Data yang sudah dihapus tidak bisa dikembalikan.')) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/transactions/${txId}`, {
+            method: 'DELETE',
+        });
+        
+        if (!res.ok) throw new Error('Gagal menghapus transaksi');
+        
+        console.log('Transaction deleted:', txId);
+        
+        // Reload all data to reflect changes
+        refreshDashboard(false);
+    } catch (err) {
+        console.error('Error deleting transaction:', err);
+        alert('Gagal menghapus transaksi. Silakan coba lagi.');
+    }
+}
