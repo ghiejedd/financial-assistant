@@ -542,7 +542,7 @@ async def get_daily_spending(user_id: int, days: int = 30) -> list[dict]:
 
         # Fill gaps with zero
         result = []
-        date_data = {row[0]: {"expense": row[1], "income": row[2]} for row in rows}
+        date_data = {row["date"]: {"expense": row["expense"], "income": row["income"]} for row in rows}
 
         for i in range(days):
             date = (datetime.now() - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
@@ -575,7 +575,7 @@ async def get_category_breakdown(user_id: int, days: int = 30) -> list[dict]:
             (user_id, since),
         )
         rows = await cursor.fetchall()
-        return [{"category": row[0], "total": row[1], "count": row[2]} for row in rows]
+        return [{"category": row["category"], "total": row["total"], "count": row["count"]} for row in rows]
 
 
 async def get_monthly_trend(user_id: int, months: int = 6) -> list[dict]:
@@ -599,7 +599,7 @@ async def get_monthly_trend(user_id: int, months: int = 6) -> list[dict]:
             (user_id, since),
         )
         rows = await cursor.fetchall()
-        return [{"month": row[0], "income": row[1], "expense": row[2]} for row in rows]
+        return [{"month": row["month"], "income": row["income"], "expense": row["expense"]} for row in rows]
 
 
 async def get_all_user_ids() -> list[int]:
@@ -612,7 +612,7 @@ async def get_all_user_ids() -> list[int]:
             "SELECT DISTINCT telegram_user_id FROM transactions"
         )
         rows = await cursor.fetchall()
-        return [row[0] for row in rows]
+        return [row["telegram_user_id"] for row in rows]
 
 
 async def export_to_excel(user_id: int, days: Optional[int] = None) -> str:
@@ -1017,7 +1017,7 @@ async def get_behavior_analysis(user_id: int) -> dict:
             """,
             (user_id, this_month_start.isoformat()),
         )
-        this_month = {row[0]: {"total": row[1], "count": row[2]} for row in await cursor.fetchall()}
+        this_month = {row["category"]: {"total": row["total"], "count": row["count"]} for row in await cursor.fetchall()}
 
         # Last month spending by category
         cursor = await db.execute(
@@ -1030,7 +1030,7 @@ async def get_behavior_analysis(user_id: int) -> dict:
             """,
             (user_id, last_month_start.isoformat(), this_month_start.isoformat()),
         )
-        last_month = {row[0]: {"total": row[1], "count": row[2]} for row in await cursor.fetchall()}
+        last_month = {row["category"]: {"total": row["total"], "count": row["count"]} for row in await cursor.fetchall()}
 
         # This month totals
         cursor = await db.execute(
@@ -1044,8 +1044,8 @@ async def get_behavior_analysis(user_id: int) -> dict:
             (user_id, this_month_start.isoformat()),
         )
         row = await cursor.fetchone()
-        total_income = row[0]
-        total_expense = row[1]
+        total_income = row["income"]
+        total_expense = row["expense"]
 
         # Last month totals
         cursor = await db.execute(
