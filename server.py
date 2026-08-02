@@ -17,12 +17,45 @@ import os
 import database as db
 
 logger = logging.getLogger(__name__)
+from contextlib import asynccontextmanager
+from telegram import Update
 
-app = FastAPI(title="Financial Assistant Dashboard", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    webhook_url = os.getenv("WEBHOOK_URL")
+    if webhook_url:
+        bot_app = app.state.bot_app
+        await bot_app.initialize()
+        await bot_app.start()
+        # Set webhook URL (must be HTTPS)
+        webhook_endpoint = f"{webhook_url.rstrip('/')}/webhook"
+        await bot_app.bot.set_webhook(url=webhook_endpoint)
+        logger.info(f"✅ Webhook set to {webhook_endpoint}")
+    yield
+    # Shutdown
+    if webhook_url:
+        bot_app = app.state.bot_app
+        await bot_app.bot.delete_webhook()
+        await bot_app.stop()
+        await bot_app.shutdown()
+        logger.info("❌ Webhook stopped.")
+
+app = FastAPI(title="Financial Assistant Dashboard", version="1.0.0", lifespan=lifespan)
 
 # Serve static files
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+@app.post("/webhook")
+async def telegram_webhook(request: Request):
+    """Receive incoming webhook updates from Telegram."""
+    bot_app = app.state.bot_app
+    data = await request.json()
+    update = Update.de_json(data, bot_app.bot)
+    await bot_app.process_update(update)
+    return {"ok": True}
+
 
 # ── SSE Event System ──
 sse_clients: list[asyncio.Queue] = []

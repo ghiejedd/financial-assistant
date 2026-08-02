@@ -53,35 +53,57 @@ def main():
     # ── Connect SSE notifications ──
     telegram_bot.set_sse_notify(sse_notify)
 
-    # ── Start FastAPI Dashboard in a thread ──
-    logger.info(f"🌐 Dashboard starting on http://localhost:{port}")
-
-    uvicorn_config = uvicorn.Config(
-        app=fastapi_app,
-        host=host,
-        port=port,
-        log_level="warning",
-        access_log=False,
-    )
-    uvicorn_server = uvicorn.Server(uvicorn_config)
-
-    dashboard_thread = threading.Thread(
-        target=uvicorn_server.run,
-        daemon=True,
-    )
-    dashboard_thread.start()
-
-    # ── Start Telegram Bot (main thread) ──
-    logger.info("🤖 Telegram Bot starting...")
-    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    logger.info("💰 Financial Assistant is running!")
-    logger.info(f"📊 Dashboard: http://localhost:{port}")
-    logger.info("🤖 Bot: Ready to receive messages")
-    logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    logger.info("Press Ctrl+C to stop.")
-
     bot_app = telegram_bot.create_bot(token)
-    bot_app.run_polling(drop_pending_updates=True, bootstrap_retries=-1)
+    fastapi_app.state.bot_app = bot_app
+
+    webhook_url = os.getenv("WEBHOOK_URL")
+
+    if webhook_url:
+        # ── WEBHOOK MODE (Cloud) ──
+        logger.info(f"🌐 Running in WEBHOOK mode. URL: {webhook_url}")
+        logger.info(f"📊 Dashboard starting on http://localhost:{port}")
+        logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logger.info("💰 Financial Assistant is running!")
+        
+        # Run Uvicorn directly in the main thread (bot is managed by FastAPI lifespan)
+        uvicorn.run(
+            fastapi_app,
+            host=host,
+            port=port,
+            log_level="warning",
+            access_log=False,
+        )
+    else:
+        # ── POLLING MODE (Local) ──
+        logger.info("🖥️ Running in POLLING mode (Local).")
+        logger.info(f"🌐 Dashboard starting on http://localhost:{port}")
+        
+        # Start FastAPI in a background thread
+        uvicorn_config = uvicorn.Config(
+            app=fastapi_app,
+            host=host,
+            port=port,
+            log_level="warning",
+            access_log=False,
+        )
+        uvicorn_server = uvicorn.Server(uvicorn_config)
+        dashboard_thread = threading.Thread(
+            target=uvicorn_server.run,
+            daemon=True,
+        )
+        dashboard_thread.start()
+
+        logger.info("🤖 Telegram Bot starting...")
+        logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logger.info("💰 Financial Assistant is running!")
+        logger.info(f"📊 Dashboard: http://localhost:{port}")
+        logger.info("🤖 Bot: Ready to receive messages (Polling)")
+        logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        logger.info("Press Ctrl+C to stop.")
+
+        # Delete any existing webhook before polling
+        asyncio.run(bot_app.bot.delete_webhook())
+        bot_app.run_polling(drop_pending_updates=True, bootstrap_retries=-1)
 
 
 if __name__ == "__main__":
