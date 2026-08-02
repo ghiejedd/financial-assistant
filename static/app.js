@@ -179,6 +179,20 @@ async function postJSON(url, body) {
     }
 }
 
+async function putJSON(url, body) {
+    try {
+        const res = await fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        return await res.json();
+    } catch (err) {
+        console.error(`Put error (${url}):`, err);
+        return null;
+    }
+}
+
 // ═══════════════════════════════════════════
 // KPI Cards
 // ═══════════════════════════════════════════
@@ -609,6 +623,9 @@ async function updateTransactions(highlight = false) {
         const typeClass = isIncome ? 'income' : 'expense';
         const newClass = highlight && i === 0 ? ' new-row' : '';
 
+        // Stringify the tx object safely for the onclick handler
+        const txJson = JSON.stringify(tx).replace(/"/g, '&quot;');
+        
         return `
             <tr class="${newClass}">
                 <td>
@@ -620,14 +637,66 @@ async function updateTransactions(highlight = false) {
                 </td>
                 <td>${tx.category}</td>
                 <td class="hide-mobile">${tx.description || '-'}</td>
-                <td style="text-align: right;">
+                <td style="text-align: right; white-space: nowrap;">
                     <span class="tx-amount ${typeClass}">${isIncome ? '+' : '-'} ${formatRupiahFull(tx.amount)}</span>
+                    <button class="btn-icon" onclick="openEditTxModal(${txJson})" style="margin-left: 8px; background: none; border: none; cursor: pointer; opacity: 0.7;" title="Edit Transaksi">
+                        ✏️
+                    </button>
                 </td>
             </tr>
         `;
     });
 
     tbody.innerHTML = rows.join('');
+}
+
+// ═══════════════════════════════════════════
+// Edit Transaction Handling
+// ═══════════════════════════════════════════
+
+function openEditTxModal(tx) {
+    document.getElementById('editTxId').value = tx.id;
+    document.getElementById('editTxType').value = tx.type;
+    document.getElementById('editTxAmount').value = tx.amount;
+    document.getElementById('editTxCategory').value = tx.category || '';
+    document.getElementById('editTxAccount').value = tx.account_name || '';
+    document.getElementById('editTxDesc').value = tx.description || '';
+    document.getElementById('editTxModal').style.display = 'flex';
+}
+
+function closeEditTxModal() {
+    document.getElementById('editTxModal').style.display = 'none';
+}
+
+async function submitEditTx() {
+    const id = document.getElementById('editTxId').value;
+    const type = document.getElementById('editTxType').value;
+    const amount = parseFloat(document.getElementById('editTxAmount').value);
+    const category = document.getElementById('editTxCategory').value;
+    const account = document.getElementById('editTxAccount').value;
+    const desc = document.getElementById('editTxDesc').value;
+
+    if (!amount || amount <= 0) {
+        showToast('Jumlah tidak valid!', 'error');
+        return;
+    }
+
+    const payload = {
+        amount: amount,
+        type: type,
+        category: category,
+        description: desc,
+        account_name: account
+    };
+
+    const res = await putJSON(`/api/transactions/${id}`, payload);
+    if (res) {
+        showToast('Transaksi berhasil diedit!');
+        closeEditTxModal();
+        // The SSE will trigger the reload automatically
+    } else {
+        showToast('Gagal mengedit transaksi', 'error');
+    }
 }
 
 // ═══════════════════════════════════════════

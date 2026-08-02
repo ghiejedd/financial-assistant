@@ -343,6 +343,41 @@
         </div>
     </div>
 
+    <!-- Edit Transaction Modal -->
+    <div class="modal-overlay" id="editTxModal" style="display: none;">
+        <div class="modal">
+            <h3 class="modal-title">✏️ Edit Transaksi</h3>
+            <input type="hidden" id="editTxId">
+            <div class="form-group">
+                <label>Tipe Transaksi</label>
+                <select id="editTxType">
+                    <option value="expense">Pengeluaran</option>
+                    <option value="income">Pemasukan</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Jumlah (Rp)</label>
+                <input type="number" id="editTxAmount" placeholder="Contoh: 50000">
+            </div>
+            <div class="form-group">
+                <label>Kategori</label>
+                <input type="text" id="editTxCategory" placeholder="Contoh: 🍔 Makanan & Minuman">
+            </div>
+            <div class="form-group">
+                <label>Rekening / Akun</label>
+                <input type="text" id="editTxAccount" placeholder="Contoh: BRI, GoPay, dll (Kosongkan jika tidak ada)">
+            </div>
+            <div class="form-group">
+                <label>Deskripsi</label>
+                <input type="text" id="editTxDesc" placeholder="Contoh: Makan siang nasi padang">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeEditTxModal()">Batal</button>
+                <button class="btn-primary" onclick="submitEditTx()">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 

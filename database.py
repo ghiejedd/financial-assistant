@@ -324,8 +324,11 @@ async def edit_transaction(
     new_amount: Optional[float] = None,
     new_description: Optional[str] = None,
     new_type: Optional[str] = None,
+    new_category: Optional[str] = None,
+    new_account_name: Optional[str] = None,
+    new_created_at: Optional[str] = None,
 ) -> Optional[dict]:
-    """Edit a transaction's amount, description, or type. Adjusts account balance if needed."""
+    """Edit a transaction's details. Adjusts account balances if needed."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
@@ -339,34 +342,55 @@ async def edit_transaction(
         tx = dict(row)
         old_amount = tx["amount"]
         old_type = tx["type"]
+        old_account = tx.get("account_name")
 
         updated_amount = new_amount if new_amount is not None else old_amount
         updated_description = new_description if new_description is not None else tx["description"]
         updated_type = new_type if new_type is not None else old_type
+        updated_category = new_category if new_category is not None else tx["category"]
+        
+        # If explicitly passed empty string, it removes the account
+        if new_account_name is not None:
+            updated_account = new_account_name if new_account_name.strip() else None
+        else:
+            updated_account = old_account
+
+        updated_created_at = new_created_at if new_created_at is not None else tx["created_at"]
 
         await db.execute(
-            "UPDATE transactions SET amount = ?, description = ?, type = ? WHERE id = ?",
-            (updated_amount, updated_description, updated_type, tx_id),
+            "UPDATE transactions SET amount = ?, description = ?, type = ?, category = ?, account_name = ?, created_at = ? WHERE id = ?",
+            (updated_amount, updated_description, updated_type, updated_category, updated_account, updated_created_at, tx_id),
         )
         await db.commit()
 
-    # Adjust account balance if linked
-    account_name = tx.get("account_name")
-    if account_name:
+    # Adjust account balances
+    if old_account or updated_account:
         user_accounts = await get_accounts(user_id)
-        current_acc = next((a for a in user_accounts if a["name"].lower() == account_name.lower()), None)
-        if current_acc:
-            # Revert old transaction effect
-            old_delta = old_amount if old_type == "income" else -old_amount
-            # Apply new transaction effect
-            new_delta = updated_amount if updated_type == "income" else -updated_amount
-            balance_diff = new_delta - old_delta
-            new_balance = current_acc["balance"] + balance_diff
-            await add_or_update_account(user_id, account_name, new_balance, current_acc["account_type"])
+        
+        # Revert old transaction from old account
+        if old_account:
+            acc = next((a for a in user_accounts if a["name"].lower() == old_account.lower()), None)
+            if acc:
+                revert_delta = old_amount if old_type == "expense" else -old_amount
+                acc["balance"] += revert_delta
+                await add_or_update_account(user_id, old_account, acc["balance"], acc["account_type"])
+
+        # Apply new transaction to new account
+        if updated_account:
+            # Re-fetch in case old_account was the same as updated_account
+            user_accounts = await get_accounts(user_id)
+            acc = next((a for a in user_accounts if a["name"].lower() == updated_account.lower()), None)
+            if acc:
+                apply_delta = updated_amount if updated_type == "income" else -updated_amount
+                acc["balance"] += apply_delta
+                await add_or_update_account(user_id, updated_account, acc["balance"], acc["account_type"])
 
     tx["amount"] = updated_amount
     tx["description"] = updated_description
     tx["type"] = updated_type
+    tx["category"] = updated_category
+    tx["account_name"] = updated_account
+    tx["created_at"] = updated_created_at
     return tx
 
 async def get_transactions(
