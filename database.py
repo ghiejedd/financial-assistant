@@ -588,12 +588,12 @@ async def get_monthly_trend(user_id: int, months: int = 6) -> list[dict]:
     async with await psycopg.AsyncConnection.connect(db_url, row_factory=dict_row) as db:
         cursor = await db.execute(
             """
-            SELECT strftime('%Y-%m', created_at) as month,
+            SELECT TO_CHAR(created_at, 'YYYY-MM') as month,
                    SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income,
                    SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense
             FROM transactions
             WHERE telegram_user_id = %s AND created_at >= %s
-            GROUP BY strftime('%Y-%m', created_at)
+            GROUP BY TO_CHAR(created_at, 'YYYY-MM')
             ORDER BY month ASC
             """,
             (user_id, since),
@@ -1236,12 +1236,12 @@ async def get_trend_data(user_id: int, period: str = "daily") -> list[dict]:
             since = (datetime.now() - timedelta(days=365)).isoformat()
             cursor = await db.execute(
                 """
-                SELECT strftime('%Y-%m', created_at) as period,
+                SELECT TO_CHAR(created_at, 'YYYY-MM') as period,
                        SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense,
                        SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income
                 FROM transactions
                 WHERE telegram_user_id = %s AND created_at >= %s
-                GROUP BY strftime('%Y-%m', created_at)
+                GROUP BY TO_CHAR(created_at, 'YYYY-MM')
                 ORDER BY period ASC
                 """,
                 (user_id, since),
@@ -1252,12 +1252,12 @@ async def get_trend_data(user_id: int, period: str = "daily") -> list[dict]:
         elif period == "annual":
             cursor = await db.execute(
                 """
-                SELECT strftime('%Y', created_at) as period,
+                SELECT TO_CHAR(created_at, 'YYYY') as period,
                        SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense,
                        SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income
                 FROM transactions
                 WHERE telegram_user_id = %s
-                GROUP BY strftime('%Y', created_at)
+                GROUP BY TO_CHAR(created_at, 'YYYY')
                 ORDER BY period ASC
                 """,
                 (user_id,),
