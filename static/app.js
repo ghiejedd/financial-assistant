@@ -637,10 +637,12 @@ async function updateTransactions(highlight = false) {
                 </td>
                 <td>${tx.category}</td>
                 <td class="hide-mobile">${tx.description || '-'}</td>
-                <td style="text-align: right; white-space: nowrap;">
                     <span class="tx-amount ${typeClass}">${isIncome ? '+' : '-'} ${formatRupiahFull(tx.amount)}</span>
                     <button class="btn-icon" onclick="openEditTxModal(${txJson})" style="margin-left: 8px; background: none; border: none; cursor: pointer; opacity: 0.7;" title="Edit Transaksi">
                         ✏️
+                    </button>
+                    <button class="btn-icon" onclick="deleteTransaction(${tx.id})" style="margin-left: 4px; background: none; border: none; cursor: pointer; opacity: 0.7; color: inherit;" title="Hapus Transaksi">
+                        🗑️
                     </button>
                 </td>
             </tr>
