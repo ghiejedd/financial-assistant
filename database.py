@@ -243,11 +243,13 @@ async def add_transaction(
             """
             INSERT INTO transactions (telegram_user_id, type, category, amount, description, account_name, created_at)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
             """,
             (user_id, tx_type, category, amount, description, account_name, datetime.now().isoformat()),
         )
+        row = await cursor.fetchone()
+        tx_id = row["id"]
         await db.commit()
-        tx_id = cursor.lastrowid
 
     account_info = None
     if account_name:
@@ -771,12 +773,14 @@ async def add_savings_goal(
             """
             INSERT INTO savings_goals (telegram_user_id, name, target_amount, icon, created_at, goal_type)
             VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
             """,
             (user_id, name, target_amount, icon, datetime.now().isoformat(), goal_type),
         )
+        row = await cursor.fetchone()
         await db.commit()
         return {
-            "id": cursor.lastrowid,
+            "id": row["id"],
             "name": name,
             "target_amount": target_amount,
             "current_amount": 0,
