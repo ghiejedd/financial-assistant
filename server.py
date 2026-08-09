@@ -156,50 +156,6 @@ async def api_transactions(
     all_transactions.sort(key=lambda x: x["created_at"], reverse=True)
     return all_transactions[:limit]
 
-from pydantic import BaseModel
-from fastapi import HTTPException
-
-class TransactionUpdate(BaseModel):
-    amount: Optional[float] = None
-    description: Optional[str] = None
-    type: Optional[str] = None
-    category: Optional[str] = None
-    account_name: Optional[str] = None
-    created_at: Optional[str] = None
-    user_id: Optional[int] = None
-
-@app.put("/api/transactions/{tx_id}")
-async def api_update_transaction(tx_id: int, data: TransactionUpdate):
-    """Update a transaction."""
-    user_id = data.user_id
-    if not user_id:
-        # Default to first user if not provided (single user app assumption)
-        user_ids = await db.get_all_user_ids()
-        if not user_ids:
-            raise HTTPException(status_code=404, detail="No users found")
-        user_id = user_ids[0]
-
-    tx = await db.edit_transaction(
-        user_id=user_id,
-        tx_id=tx_id,
-        new_amount=data.amount,
-        new_description=data.description,
-        new_type=data.type,
-        new_category=data.category,
-        new_account_name=data.account_name,
-        new_created_at=data.created_at,
-    )
-    if not tx:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-
-    # Broadcast event to trigger reload
-    await sse_notify({
-        "event": "transaction_updated",
-        "user_id": user_id,
-        "transaction": tx
-    })
-    return tx
-
 @app.get("/api/daily")
 async def api_daily(days: int = Query(30, ge=1, le=90)):
     """Get daily spending/income for chart."""

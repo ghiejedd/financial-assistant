@@ -7,8 +7,6 @@ import psycopg
 from psycopg_pool import AsyncConnectionPool
 from psycopg.rows import dict_row
 import os
-from urllib.parse import urlparse
-import os
 from datetime import datetime as _dt, timedelta, timezone
 from typing import Optional
 from openpyxl import Workbook
@@ -23,10 +21,6 @@ class datetime(_dt):
             return super().now(tz)
         return super().now(WIB).replace(tzinfo=None)
 
-DB_PATH = os.getenv(
-    "DB_PATH",
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "financial_assistant.db")
-)
 EXPORTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "exports")
 
 # Default categories
