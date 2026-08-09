@@ -404,53 +404,7 @@ body {
     color: var(--text-muted);
 }
 
-.score-badge {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    background: rgba(99, 102, 241, 0.08);
-    border: 1px solid var(--border-glow);
-    padding: 10px 20px;
-    border-radius: var(--radius-md);
-    box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
-}
 
-.score-ring {
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent-indigo), var(--accent-violet));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 16px var(--accent-indigo-glow);
-}
-
-.score-number {
-    font-family: var(--font-mono);
-    font-size: 20px;
-    font-weight: 800;
-    color: #ffffff;
-}
-
-.score-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.score-title {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-    font-weight: 700;
-}
-
-.score-status {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--income-primary);
-}
 
 .analysis-body {
     display: grid;
@@ -1093,9 +1047,48 @@ body {
 @media (max-width: 1200px) {
     .kpi-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
 @media (max-width: 900px) {
     .app-container { padding: 20px 16px; }
     .analysis-body, .management-grid, .charts-grid { grid-template-columns: 1fr; }
     .header { flex-direction: column; align-items: flex-start; gap: 16px; }
     .header-right { width: 100%; justify-content: space-between; }
+    .analysis-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+
+@media (max-width: 600px) {
+    .app-container { padding: 12px 8px; }
+    .kpi-grid { grid-template-columns: 1fr; gap: 10px; }
+    .kpi-card { padding: 14px; }
+    .kpi-value { font-size: 22px; }
+    .kpi-label { font-size: 11px; }
+
+    .header-title { font-size: 18px; }
+    .header-subtitle { font-size: 11px; }
+    .header-right { flex-wrap: wrap; gap: 8px; }
+    .btn-export span { display: none; }
+
+    .chart-card { padding: 14px; }
+    .chart-container { height: 200px; }
+    .chart-container.doughnut { height: 180px; }
+    .chart-title { font-size: 13px; }
+
+    .analysis-card { padding: 16px; }
+    .analysis-title { font-size: 16px; }
+    .analysis-body { gap: 16px; }
+    .analysis-subheading { font-size: 13px; }
+
+    .management-card { padding: 14px; }
+    .management-title { font-size: 15px; }
+
+    .transactions-card { padding: 14px; }
+    .tx-amount { font-size: 13px; }
+    .tx-date { font-size: 12px; }
+    .tx-type { font-size: 11px; padding: 3px 8px; }
+    .hide-mobile { display: none; }
+
+    .section-title-wrap { gap: 10px; }
+    .section-icon { font-size: 20px; }
+
+    .modal-content { width: 95vw; padding: 20px; margin: 10px; }
 }

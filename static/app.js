@@ -242,35 +242,6 @@ async function updateBehaviorAnalysis() {
     const data = await fetchJSON(API.analysis);
     if (!data) return;
 
-    // Health Score
-    const scoreNum = document.getElementById('scoreNumber');
-    scoreNum.textContent = data.score;
-    const scoreBadge = document.getElementById('scoreBadge');
-    const scoreStatus = document.getElementById('scoreStatus');
-
-    if (data.score >= 80) {
-        scoreBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-        scoreNum.style.color = '#ffffff';
-        if (scoreStatus) {
-            scoreStatus.textContent = 'Optimal';
-            scoreStatus.style.color = '#10b981';
-        }
-    } else if (data.score >= 60) {
-        scoreBadge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
-        scoreNum.style.color = '#ffffff';
-        if (scoreStatus) {
-            scoreStatus.textContent = 'Baik';
-            scoreStatus.style.color = '#f59e0b';
-        }
-    } else {
-        scoreBadge.style.borderColor = 'rgba(244, 63, 94, 0.4)';
-        scoreNum.style.color = '#ffffff';
-        if (scoreStatus) {
-            scoreStatus.textContent = 'Perlu Perhatian';
-            scoreStatus.style.color = '#f43f5e';
-        }
-    }
-
     // Recommendations List
     const recList = document.getElementById('recommendationsList');
     if (!data.recommendations || data.recommendations.length === 0) {
