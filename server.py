@@ -96,6 +96,12 @@ async def dashboard_page():
         return HTMLResponse(content=f.read())
 
 
+@app.api_route("/health", methods=["GET", "HEAD"])
+async def health_check():
+    """Lightweight health check for UptimeRobot / uptime monitors."""
+    return {"status": "ok"}
+
+
 # ══════════════════════════════════════════════
 # API Endpoints
 # ══════════════════════════════════════════════
