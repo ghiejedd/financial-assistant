@@ -396,6 +396,7 @@ async def process_transaction(
     update: Update,
     text: str,
     force_type: str | None = None,
+    batch_mode: bool = False,
 ):
     """Process a transaction from natural language text."""
     user_id = update.effective_user.id
@@ -453,6 +454,10 @@ async def process_transaction(
         account_name=account_name,
     )
 
+    # Batch mode: skip individual replies, return transaction data
+    if batch_mode:
+        return {"type": tx_type, "amount": amount, "id": tx["id"]}
+
     # Build confirmation message
     type_emoji = "💵" if tx_type == "income" else "💸"
     type_text = "Pemasukan" if tx_type == "income" else "Pengeluaran"
@@ -507,31 +512,63 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     
+    # Single line: process normally with full reply
+    if len(lines) == 1:
+        result = await process_transaction(update, lines[0])
+        if not result:
+            await update.message.reply_text(
+                "🤔 Aku gak bisa baca transaksi dari pesan itu.\n\n"
+                "Coba format:\n"
+                '• `makan siang 35rb bri` (Pengeluaran BRI)\n'
+                '• `+ gaji 5jt bsi` (Pemasukan BSI)\n'
+                '• `gopay 50k jajan` (Pengeluaran GoPay)\n\n'
+                "_Ketik /help untuk bantuan lengkap_",
+                parse_mode="Markdown",
+            )
+        return
+
+    # Multi-line: batch mode — process silently, send one summary
+    await update.message.reply_text(
+        f"⏳ Memproses {len(lines)} transaksi...",
+    )
+
     success_count = 0
     failed_lines = []
+    total_income = 0
+    total_expense = 0
 
     for line in lines:
-        result = await process_transaction(update, line)
+        result = await process_transaction(update, line, batch_mode=True)
         if result:
             success_count += 1
+            if result["type"] == "income":
+                total_income += result["amount"]
+            else:
+                total_expense += result["amount"]
         else:
             failed_lines.append(line)
 
-    if failed_lines and len(lines) > 1:
-        msg = f"❌ **Gagal memproses {len(failed_lines)} baris:**\n"
-        for f_line in failed_lines:
-            msg += f"• `{f_line}`\n"
-        await update.message.reply_text(msg, parse_mode="Markdown")
-    elif not success_count and len(lines) == 1:
-        await update.message.reply_text(
-            "🤔 Aku gak bisa baca transaksi dari pesan itu.\n\n"
-            "Coba format:\n"
-            '• `makan siang 35rb bri` (Pengeluaran BRI)\n'
-            '• `+ gaji 5jt bsi` (Pemasukan BSI)\n'
-            '• `gopay 50k jajan` (Pengeluaran GoPay)\n\n'
-            "_Ketik /help untuk bantuan lengkap_",
-            parse_mode="Markdown",
-        )
+    # Build summary
+    summary_parts = [f"✅ **Batch Input Selesai!**\n"]
+    summary_parts.append(f"📝 Berhasil: **{success_count}** dari {len(lines)} transaksi")
+    if total_income > 0:
+        summary_parts.append(f"💵 Total Pemasukan: **{format_rupiah(total_income)}**")
+    if total_expense > 0:
+        summary_parts.append(f"💸 Total Pengeluaran: **{format_rupiah(total_expense)}**")
+
+    if failed_lines:
+        summary_parts.append(f"\n❌ **Gagal ({len(failed_lines)}):**")
+        for f_line in failed_lines[:10]:  # Max 10 to avoid message too long
+            summary_parts.append(f"• `{f_line}`")
+        if len(failed_lines) > 10:
+            summary_parts.append(f"_...dan {len(failed_lines) - 10} lainnya_")
+
+    await update.message.reply_text("\n".join(summary_parts), parse_mode="Markdown")
+
+    # Notify dashboard once
+    if sse_notify:
+        user_id = update.effective_user.id
+        await sse_notify({"event": "new_transaction", "user_id": user_id})
 
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
