@@ -103,6 +103,71 @@ async def health_check():
 
 
 # ══════════════════════════════════════════════
+# Combined Dashboard API (Performance)
+# ══════════════════════════════════════════════
+
+@app.get("/api/dashboard")
+async def api_dashboard(days: int = Query(30, ge=1, le=365)):
+    """Fetch all dashboard data in a single request for performance."""
+    import asyncio
+
+    user_ids = await db.get_all_user_ids()
+    if not user_ids:
+        return {
+            "summary": {"total_income": 0, "total_expense": 0, "balance": 0, "savings_rate": 0, "transaction_count": 0, "period_days": days},
+            "transactions": [],
+            "daily": [],
+            "categories": [],
+            "monthly": [],
+            "savings": [],
+            "budgets": [],
+            "analysis": {"score": 0, "total_income": 0, "total_expense": 0, "daily_average": 0, "overall_trend": "stable", "overall_change": 0, "top_categories": [], "recommendations": [], "over_budget_count": 0},
+            "trend": [],
+            "accounts": [],
+        }
+
+    uid = user_ids[0]
+
+    # Fetch all data in parallel
+    (
+        summary_data,
+        transactions_data,
+        daily_data,
+        categories_data,
+        monthly_data,
+        savings_data,
+        budgets_data,
+        analysis_data,
+        trend_data,
+        accounts_data,
+    ) = await asyncio.gather(
+        db.get_summary(uid, days=days),
+        db.get_transactions(uid, limit=20),
+        db.get_daily_spending(uid, days=days),
+        db.get_category_breakdown(uid, days=days),
+        db.get_monthly_trend(uid, months=6),
+        db.get_savings_goals(uid),
+        db.get_budget_vs_actual(uid),
+        db.get_behavior_analysis(uid),
+        db.get_trend_data(uid, period="daily"),
+        db.get_accounts(uid),
+    )
+
+    return {
+        "summary": summary_data,
+        "transactions": transactions_data,
+        "daily": daily_data,
+        "categories": categories_data,
+        "monthly": monthly_data,
+        "savings": savings_data,
+        "budgets": budgets_data,
+        "analysis": analysis_data,
+        "trend": trend_data,
+        "accounts": accounts_data,
+    }
+
+
+# ══════════════════════════════════════════════
 # API Endpoints
 # ══════════════════════════════════════════════
 

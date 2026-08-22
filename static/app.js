@@ -8,6 +8,7 @@
 // ═══════════════════════════════════════════
 
 const API = {
+    dashboard: '/api/dashboard',
     summary: '/api/summary',
     transactions: '/api/transactions',
     daily: '/api/daily',
@@ -197,8 +198,8 @@ async function putJSON(url, body) {
 // KPI Cards
 // ═══════════════════════════════════════════
 
-async function updateKPIs() {
-    const data = await fetchJSON(API.summary);
+async function updateKPIs(prefetchedData = null) {
+    const data = prefetchedData || await fetchJSON(API.summary);
     if (!data) return;
 
     const kpiIncome = document.getElementById('kpiIncome');
@@ -238,8 +239,8 @@ async function updateKPIs() {
 // Behavior Analysis & Recommendations
 // ═══════════════════════════════════════════
 
-async function updateBehaviorAnalysis() {
-    const data = await fetchJSON(API.analysis);
+async function updateBehaviorAnalysis(prefetchedData = null) {
+    const data = prefetchedData || await fetchJSON(API.analysis);
     if (!data) return;
 
     // Recommendations List
@@ -288,9 +289,9 @@ async function updateBehaviorAnalysis() {
 // Trend Chart (With Period Switcher)
 // ═══════════════════════════════════════════
 
-async function updateTrendChart(period = currentPeriod) {
+async function updateTrendChart(period = currentPeriod, prefetchedData = null) {
     currentPeriod = period;
-    const data = await fetchJSON(`${API.trend}?period=${period}`);
+    const data = prefetchedData || await fetchJSON(`${API.trend}?period=${period}`);
     if (!data) return;
 
     const labels = data.map(d => formatDateShort(d.date));
@@ -381,8 +382,8 @@ async function updateTrendChart(period = currentPeriod) {
 // Category & Monthly Charts
 // ═══════════════════════════════════════════
 
-async function updateCategoryChart() {
-    const data = await fetchJSON(API.categories);
+async function updateCategoryChart(prefetchedData = null) {
+    const data = prefetchedData || await fetchJSON(API.categories);
     if (!data || data.length === 0) return;
 
     const labels = data.map(d => d.category);
@@ -452,8 +453,8 @@ async function updateCategoryChart() {
     });
 }
 
-async function updateMonthlyChart() {
-    const data = await fetchJSON(API.monthly);
+async function updateMonthlyChart(prefetchedData = null) {
+    const data = prefetchedData || await fetchJSON(API.monthly);
     if (!data || data.length === 0) return;
 
     const labels = data.map(d => {
@@ -517,8 +518,8 @@ async function updateMonthlyChart() {
 // Savings Goals & Budgets Rendering
 // ═══════════════════════════════════════════
 
-async function updateSavingsGoals() {
-    const data = await fetchJSON(API.savings);
+async function updateSavingsGoals(prefetchedData = null) {
+    const data = prefetchedData || await fetchJSON(API.savings);
     const container = document.getElementById('savingsGrid');
 
     if (!data || data.length === 0) {
@@ -541,8 +542,8 @@ async function updateSavingsGoals() {
     `).join('');
 }
 
-async function updateBudgets() {
-    const data = await fetchJSON(API.budgets);
+async function updateBudgets(prefetchedData = null) {
+    const data = prefetchedData || await fetchJSON(API.budgets);
     const container = document.getElementById('budgetList');
 
     if (!data || data.length === 0) {
@@ -569,8 +570,8 @@ async function updateBudgets() {
 // Transactions Table
 // ═══════════════════════════════════════════
 
-async function updateTransactions(highlight = false) {
-    const data = await fetchJSON(API.transactions + '?limit=20');
+async function updateTransactions(highlight = false, prefetchedData = null) {
+    const data = prefetchedData || await fetchJSON(API.transactions + '?limit=20');
     if (!data) return;
 
     const tbody = document.getElementById('transactionsBody');
@@ -733,8 +734,8 @@ async function submitBudget() {
     }
 }
 
-async function updateAccounts() {
-    const data = await fetchJSON(API.accounts);
+async function updateAccounts(prefetchedData = null) {
+    const data = prefetchedData || await fetchJSON(API.accounts);
     const container = document.getElementById('accountsList');
     if (!container) return;
 
@@ -867,6 +868,27 @@ async function refreshDashboard(highlightNew = false) {
     ]);
 }
 
+async function initialLoad() {
+    // Single combined API call for fastest initial load
+    const data = await fetchJSON(API.dashboard);
+    if (!data) {
+        // Fallback to individual calls
+        await refreshDashboard();
+        return;
+    }
+    await Promise.all([
+        updateKPIs(data.summary),
+        updateBehaviorAnalysis(data.analysis),
+        updateTrendChart('daily', data.trend),
+        updateCategoryChart(data.categories),
+        updateMonthlyChart(data.monthly),
+        updateSavingsGoals(data.savings),
+        updateBudgets(data.budgets),
+        updateAccounts(data.accounts),
+        updateTransactions(false, data.transactions),
+    ]);
+}
+
 // ═══════════════════════════════════════════
 // Initialization
 // ═══════════════════════════════════════════
@@ -884,7 +906,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    await refreshDashboard();
+    await initialLoad();
     connectSSE();
 
     setInterval(() => refreshDashboard(false), 60000);
