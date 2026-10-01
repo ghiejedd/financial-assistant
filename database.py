@@ -370,62 +370,69 @@ async def edit_transaction(
     new_account_name: Optional[str] = None,
     new_created_at: Optional[str] = None,
 ) -> Optional[dict]:
-    """Edit a transaction's details. Adjusts account balances if needed."""
+    """Edit a transaction's details. Adjusts account balances if needed efficiently."""
     pool = await get_pool()
     async with pool.connection() as db:
-        cursor = await db.execute(
-            "SELECT * FROM transactions WHERE id = %s AND telegram_user_id = %s",
-            (tx_id, user_id),
-        )
-        row = await cursor.fetchone()
-        if not row:
-            return None
+        async with db.transaction():
+            cursor = await db.execute(
+                "SELECT * FROM transactions WHERE id = %s AND telegram_user_id = %s",
+                (tx_id, user_id),
+            )
+            row = await cursor.fetchone()
+            if not row:
+                return None
 
-        tx = dict(row)
-        old_amount = tx["amount"]
-        old_type = tx["type"]
-        old_account = tx.get("account_name")
+            tx = dict(row)
+            old_amount = tx["amount"]
+            old_type = tx["type"]
+            old_account = tx.get("account_name")
 
-        updated_amount = new_amount if new_amount is not None else old_amount
-        updated_description = new_description if new_description is not None else tx["description"]
-        updated_type = new_type if new_type is not None else old_type
-        updated_category = new_category if new_category is not None else tx["category"]
-        
-        # If explicitly passed empty string, it removes the account
-        if new_account_name is not None:
-            updated_account = new_account_name if new_account_name.strip() else None
-        else:
-            updated_account = old_account
+            updated_amount = new_amount if new_amount is not None else old_amount
+            updated_description = new_description if new_description is not None else tx["description"]
+            updated_type = new_type if new_type is not None else old_type
+            updated_category = new_category if new_category is not None else tx["category"]
+            
+            if new_account_name is not None:
+                updated_account = new_account_name if new_account_name.strip() else None
+            else:
+                updated_account = old_account
 
-        updated_created_at = new_created_at if new_created_at is not None else tx["created_at"]
+            updated_created_at = new_created_at if new_created_at is not None else tx["created_at"]
 
-        await db.execute(
-            "UPDATE transactions SET amount = %s, description = %s, type = %s, category = %s, account_name = %s, created_at = %s WHERE id = %s",
-            (updated_amount, updated_description, updated_type, updated_category, updated_account, updated_created_at, tx_id),
-        )
-        await db.commit()
+            await db.execute(
+                "UPDATE transactions SET amount = %s, description = %s, type = %s, category = %s, account_name = %s, created_at = %s WHERE id = %s",
+                (updated_amount, updated_description, updated_type, updated_category, updated_account, updated_created_at, tx_id),
+            )
 
-    # Adjust account balances
-    if old_account or updated_account:
-        user_accounts = await get_accounts(user_id)
-        
-        # Revert old transaction from old account
-        if old_account:
-            acc = next((a for a in user_accounts if a["name"].lower() == old_account.lower()), None)
-            if acc:
-                revert_delta = old_amount if old_type == "expense" else -old_amount
-                acc["balance"] += revert_delta
-                await add_or_update_account(user_id, old_account, acc["balance"], acc["account_type"])
+            # Adjust account balances
+            old_impact = old_amount if old_type == "income" else -old_amount
+            new_impact = updated_amount if updated_type == "income" else -updated_amount
 
-        # Apply new transaction to new account
-        if updated_account:
-            # Re-fetch in case old_account was the same as updated_account
-            user_accounts = await get_accounts(user_id)
-            acc = next((a for a in user_accounts if a["name"].lower() == updated_account.lower()), None)
-            if acc:
-                apply_delta = updated_amount if updated_type == "income" else -updated_amount
-                acc["balance"] += apply_delta
-                await add_or_update_account(user_id, updated_account, acc["balance"], acc["account_type"])
+            old_acc_clean = old_account.lower() if old_account else None
+            new_acc_clean = updated_account.lower() if updated_account else None
+
+            if old_acc_clean == new_acc_clean and old_acc_clean is not None:
+                # Same account, just apply the difference
+                total_delta = new_impact - old_impact
+                if total_delta != 0:
+                    await db.execute(
+                        "UPDATE accounts SET balance = balance + %s WHERE telegram_user_id = %s AND LOWER(name) = %s",
+                        (total_delta, user_id, old_acc_clean)
+                    )
+            else:
+                # Different accounts
+                if old_acc_clean:
+                    revert_delta = -old_impact
+                    await db.execute(
+                        "UPDATE accounts SET balance = balance + %s WHERE telegram_user_id = %s AND LOWER(name) = %s",
+                        (revert_delta, user_id, old_acc_clean)
+                    )
+                if new_acc_clean:
+                    apply_delta = new_impact
+                    await db.execute(
+                        "UPDATE accounts SET balance = balance + %s WHERE telegram_user_id = %s AND LOWER(name) = %s",
+                        (apply_delta, user_id, new_acc_clean)
+                    )
 
     tx["amount"] = updated_amount
     tx["description"] = updated_description

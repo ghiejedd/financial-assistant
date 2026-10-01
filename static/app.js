@@ -139,7 +139,7 @@ function showToast(title, message, icon = '💰') {
         <span class="toast-icon">${icon}</span>
         <div class="toast-content">
             <div class="toast-title">${title}</div>
-            <div class="toast-message">${message}</div>
+            ${message ? `<div class="toast-message">${message}</div>` : ''}
         </div>
     `;
 
@@ -602,7 +602,7 @@ async function submitEditTx() {
     const desc = document.getElementById('editTxDesc').value;
 
     if (!amount || amount <= 0) {
-        showToast('Jumlah tidak valid!', 'error');
+        showToast('Input Tidak Valid', 'Jumlah tidak valid!', '❌');
         return;
     }
 
@@ -616,11 +616,11 @@ async function submitEditTx() {
 
     const res = await putJSON(`/api/transactions/${id}`, payload);
     if (res) {
-        showToast('Transaksi berhasil diedit!');
+        showToast('Berhasil', 'Transaksi berhasil diedit!');
         closeEditTxModal();
         // The SSE will trigger the reload automatically
     } else {
-        showToast('Gagal mengedit transaksi', 'error');
+        showToast('Error', 'Gagal mengedit transaksi', '❌');
     }
 }
 
