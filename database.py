@@ -230,45 +230,58 @@ async def add_transaction(
     description: str = "",
     account_name: Optional[str] = None,
 ) -> dict:
-    """Add a new transaction and return it, updating account balance if account_name is provided."""
+    """Add a new transaction and return it, updating account balance efficiently."""
+    account_info = None
+    created_at = datetime.now().isoformat()
+    
     pool = await get_pool()
     async with pool.connection() as db:
-        cursor = await db.execute(
-            """
-            INSERT INTO transactions (telegram_user_id, type, category, amount, description, account_name, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-            """,
-            (user_id, tx_type, category, amount, description, account_name, datetime.now().isoformat()),
-        )
-        row = await cursor.fetchone()
-        tx_id = row["id"]
-        await db.commit()
+        async with db.transaction():
+            cursor = await db.execute(
+                """
+                INSERT INTO transactions (telegram_user_id, type, category, amount, description, account_name, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (user_id, tx_type, category, amount, description, account_name, created_at),
+            )
+            row = await cursor.fetchone()
+            tx_id = row["id"]
 
-    account_info = None
-    if account_name:
-        # Get current balance of this account
-        user_accounts = await get_accounts(user_id)
-        current_acc = next((a for a in user_accounts if a["name"].lower() == account_name.lower()), None)
-        current_balance = current_acc["balance"] if current_acc else 0.0
-
-        delta = amount if tx_type == "income" else -amount
-        new_balance = current_balance + delta
-
-        # Update account in DB
-        acc_type = current_acc["account_type"] if current_acc else ("bank" if account_name.upper() in ["BRI", "BSI", "BCA", "MANDIRI", "BNI", "CIMB"] else "ewallet")
-        acc_data = await add_or_update_account(
-            user_id=user_id,
-            name=account_name,
-            balance=new_balance,
-            account_type=acc_type,
-        )
-        account_info = {
-            "name": acc_data["name"],
-            "balance": new_balance,
-            "delta": delta,
-            "icon": acc_data["icon"],
-        }
+            if account_name:
+                delta = amount if tx_type == "income" else -amount
+                cursor = await db.execute(
+                    """
+                    UPDATE accounts
+                    SET balance = balance + %s
+                    WHERE telegram_user_id = %s AND LOWER(name) = LOWER(%s)
+                    RETURNING balance, icon
+                    """,
+                    (delta, user_id, account_name)
+                )
+                
+                acc_row = await cursor.fetchone()
+                if not acc_row:
+                    icon = pick_account_icon(account_name)
+                    acc_type = "bank" if account_name.upper() in ["BRI", "BSI", "BCA", "MANDIRI", "BNI", "CIMB"] else "ewallet"
+                    await db.execute(
+                        """
+                        INSERT INTO accounts (telegram_user_id, name, account_type, balance, icon, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        """,
+                        (user_id, account_name, acc_type, delta, icon, datetime.now().isoformat())
+                    )
+                    new_balance = delta
+                else:
+                    new_balance = acc_row["balance"]
+                    icon = acc_row["icon"]
+                    
+                account_info = {
+                    "name": account_name,
+                    "balance": new_balance,
+                    "delta": delta,
+                    "icon": icon,
+                }
 
     return {
         "id": tx_id,
@@ -279,7 +292,7 @@ async def add_transaction(
         "description": description,
         "account_name": account_name,
         "account_info": account_info,
-        "created_at": datetime.now().isoformat(),
+        "created_at": created_at,
     }
 
 
@@ -287,30 +300,32 @@ async def delete_last_transaction(user_id: int) -> Optional[dict]:
     """Delete the most recent transaction for a user and revert account balance."""
     pool = await get_pool()
     async with pool.connection() as db:
-        cursor = await db.execute(
-            """
-            SELECT * FROM transactions
-            WHERE telegram_user_id = %s
-            ORDER BY created_at DESC LIMIT 1
-            """,
-            (user_id,),
-        )
-        row = await cursor.fetchone()
-        if not row:
-            return None
+        async with db.transaction():
+            cursor = await db.execute(
+                """
+                SELECT * FROM transactions
+                WHERE telegram_user_id = %s
+                ORDER BY created_at DESC LIMIT 1
+                """,
+                (user_id,),
+            )
+            row = await cursor.fetchone()
+            if not row:
+                return None
 
-        tx = dict(row)
-        await db.execute("DELETE FROM transactions WHERE id = %s", (tx["id"],))
-        await db.commit()
-
-    if tx.get("account_name"):
-        acc_name = tx["account_name"]
-        user_accounts = await get_accounts(user_id)
-        current_acc = next((a for a in user_accounts if a["name"].lower() == acc_name.lower()), None)
-        if current_acc:
-            reverse_delta = -tx["amount"] if tx["type"] == "income" else tx["amount"]
-            new_balance = current_acc["balance"] + reverse_delta
-            await add_or_update_account(user_id, acc_name, new_balance, current_acc["account_type"])
+            tx = dict(row)
+            await db.execute("DELETE FROM transactions WHERE id = %s", (tx["id"],))
+            
+            if tx.get("account_name"):
+                reverse_delta = -tx["amount"] if tx["type"] == "income" else tx["amount"]
+                await db.execute(
+                    """
+                    UPDATE accounts
+                    SET balance = balance + %s
+                    WHERE telegram_user_id = %s AND LOWER(name) = LOWER(%s)
+                    """,
+                    (reverse_delta, user_id, tx["account_name"])
+                )
 
     return tx
 
@@ -319,26 +334,28 @@ async def delete_transaction_by_id(user_id: int, tx_id: int) -> Optional[dict]:
     """Delete a specific transaction by ID and revert account balance."""
     pool = await get_pool()
     async with pool.connection() as db:
-        cursor = await db.execute(
-            "SELECT * FROM transactions WHERE id = %s AND telegram_user_id = %s",
-            (tx_id, user_id),
-        )
-        row = await cursor.fetchone()
-        if not row:
-            return None
+        async with db.transaction():
+            cursor = await db.execute(
+                "SELECT * FROM transactions WHERE id = %s AND telegram_user_id = %s",
+                (tx_id, user_id),
+            )
+            row = await cursor.fetchone()
+            if not row:
+                return None
 
-        tx = dict(row)
-        await db.execute("DELETE FROM transactions WHERE id = %s", (tx_id,))
-        await db.commit()
-
-    if tx.get("account_name"):
-        acc_name = tx["account_name"]
-        user_accounts = await get_accounts(user_id)
-        current_acc = next((a for a in user_accounts if a["name"].lower() == acc_name.lower()), None)
-        if current_acc:
-            reverse_delta = -tx["amount"] if tx["type"] == "income" else tx["amount"]
-            new_balance = current_acc["balance"] + reverse_delta
-            await add_or_update_account(user_id, acc_name, new_balance, current_acc["account_type"])
+            tx = dict(row)
+            await db.execute("DELETE FROM transactions WHERE id = %s", (tx_id,))
+            
+            if tx.get("account_name"):
+                reverse_delta = -tx["amount"] if tx["type"] == "income" else tx["amount"]
+                await db.execute(
+                    """
+                    UPDATE accounts
+                    SET balance = balance + %s
+                    WHERE telegram_user_id = %s AND LOWER(name) = LOWER(%s)
+                    """,
+                    (reverse_delta, user_id, tx["account_name"])
+                )
 
     return tx
 
@@ -978,227 +995,6 @@ async def get_budget_vs_actual(user_id: int) -> list[dict]:
 # Behavior Analysis & Recommendations
 # ══════════════════════════════════════════════
 
-async def get_behavior_analysis(user_id: int) -> dict:
-    """Analyze spending behavior and generate recommendations."""
-    now = datetime.now()
-    this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    last_month_start = (this_month_start - timedelta(days=1)).replace(day=1)
-
-    pool = await get_pool()
-    async with pool.connection() as db:
-        # This month spending by category
-        cursor = await db.execute(
-            """
-            SELECT category, SUM(amount) as total, COUNT(*) as count
-            FROM transactions
-            WHERE telegram_user_id = %s AND type = 'expense' AND created_at >= %s
-            GROUP BY category ORDER BY total DESC
-            """,
-            (user_id, this_month_start.isoformat()),
-        )
-        this_month = {row["category"]: {"total": row["total"], "count": row["count"]} for row in await cursor.fetchall()}
-
-        # Last month spending by category
-        cursor = await db.execute(
-            """
-            SELECT category, SUM(amount) as total, COUNT(*) as count
-            FROM transactions
-            WHERE telegram_user_id = %s AND type = 'expense'
-              AND created_at >= %s AND created_at < %s
-            GROUP BY category ORDER BY total DESC
-            """,
-            (user_id, last_month_start.isoformat(), this_month_start.isoformat()),
-        )
-        last_month = {row["category"]: {"total": row["total"], "count": row["count"]} for row in await cursor.fetchall()}
-
-        # This month totals
-        cursor = await db.execute(
-            """
-            SELECT
-                COALESCE(SUM(CASE WHEN type='income' THEN amount END), 0) as income,
-                COALESCE(SUM(CASE WHEN type='expense' THEN amount END), 0) as expense
-            FROM transactions
-            WHERE telegram_user_id = %s AND created_at >= %s
-            """,
-            (user_id, this_month_start.isoformat()),
-        )
-        row = await cursor.fetchone()
-        total_income = row["income"]
-        total_expense = row["expense"]
-
-        # Last month totals
-        cursor = await db.execute(
-            """
-            SELECT COALESCE(SUM(CASE WHEN type='expense' THEN amount END), 0) as val
-            FROM transactions
-            WHERE telegram_user_id = %s AND created_at >= %s AND created_at < %s
-            """,
-            (user_id, last_month_start.isoformat(), this_month_start.isoformat()),
-        )
-        last_month_total_expense = (await cursor.fetchone())['val']
-
-        # Daily average this month
-        days_elapsed = max(1, now.day)
-        daily_avg = total_expense / days_elapsed
-
-        # Budget data
-        cursor = await db.execute(
-            "SELECT * FROM budgets WHERE telegram_user_id = %s",
-            (user_id,),
-        )
-        budgets = {row["category"]: dict(row) for row in await cursor.fetchall()}
-
-    # ── Calculate Spending Score (0-100) ──
-    score = 100
-    deductions = []
-
-    # Savings rate factor (40 points max)
-    if total_income > 0:
-        savings_rate = (total_income - total_expense) / total_income
-        if savings_rate >= 0.3:
-            pass  # Perfect
-        elif savings_rate >= 0.2:
-            score -= 10
-        elif savings_rate >= 0.1:
-            score -= 20
-        elif savings_rate >= 0:
-            score -= 30
-        else:
-            score -= 40
-            deductions.append("Pengeluaran melebihi pemasukan!")
-
-    # Budget adherence (30 points max)
-    over_budget_count = 0
-    for cat, data in this_month.items():
-        budget = budgets.get(cat, {})
-        limit = budget.get("monthly_limit", 0)
-        if limit > 0 and data["total"] > limit:
-            over_budget_count += 1
-    if over_budget_count > 0:
-        score -= min(30, over_budget_count * 10)
-
-    # Month-over-month trend (30 points max)
-    if last_month_total_expense > 0:
-        change = (total_expense - last_month_total_expense) / last_month_total_expense
-        if change > 0.3:
-            score -= 30
-        elif change > 0.15:
-            score -= 20
-        elif change > 0:
-            score -= 10
-
-    score = max(0, min(100, score))
-
-    # ── Top 3 Categories ──
-    top_categories = []
-    for cat, data in sorted(this_month.items(), key=lambda x: x[1]["total"], reverse=True)[:3]:
-        last = last_month.get(cat, {"total": 0})
-        change_pct = 0
-        if last["total"] > 0:
-            change_pct = round((data["total"] - last["total"]) / last["total"] * 100, 1)
-
-        top_categories.append({
-            "category": cat,
-            "amount": data["total"],
-            "count": data["count"],
-            "change_pct": change_pct,
-            "trend": "up" if change_pct > 5 else "down" if change_pct < -5 else "stable",
-        })
-
-    # ── Generate Recommendations ──
-    recommendations = []
-
-    # Budget-based recommendations
-    for cat, data in this_month.items():
-        budget = budgets.get(cat, {})
-        limit = budget.get("monthly_limit", 0)
-        if limit > 0:
-            pct = data["total"] / limit * 100
-            if pct >= 100:
-                over_amount = data["total"] - limit
-                recommendations.append({
-                    "type": "danger",
-                    "icon": "🔴",
-                    "title": f"{cat} Over Budget!",
-                    "message": f"Sudah melebihi budget Rp {limit:,.0f} sebesar Rp {over_amount:,.0f}. Kurangi pengeluaran di kategori ini.".replace(",", "."),
-                })
-            elif pct >= 80:
-                remaining = limit - data["total"]
-                recommendations.append({
-                    "type": "warning",
-                    "icon": "🟡",
-                    "title": f"{cat} Hampir Limit",
-                    "message": f"Sudah {pct:.0f}% dari budget. Sisa Rp {remaining:,.0f}.".replace(",", "."),
-                })
-
-    # Trend-based recommendations
-    for cat, data in this_month.items():
-        last = last_month.get(cat, {"total": 0})
-        if last["total"] > 0:
-            change = (data["total"] - last["total"]) / last["total"] * 100
-            if change > 25:
-                recommendations.append({
-                    "type": "warning",
-                    "icon": "📈",
-                    "title": f"{cat} Naik {change:.0f}%",
-                    "message": f"Pengeluaran naik dari bulan lalu. Evaluasi kebutuhan di kategori ini.",
-                })
-
-    # Savings rate recommendation
-    if total_income > 0:
-        sr = (total_income - total_expense) / total_income * 100
-        if sr >= 30:
-            recommendations.append({
-                "type": "success",
-                "icon": "🌟",
-                "title": f"Savings Rate {sr:.0f}% — Excellent!",
-                "message": "Kamu hemat banget bulan ini. Pertahankan!",
-            })
-        elif sr >= 20:
-            recommendations.append({
-                "type": "success",
-                "icon": "✅",
-                "title": f"Savings Rate {sr:.0f}% — Good",
-                "message": "Sudah bagus! Coba tingkatkan ke 30%.",
-            })
-        elif sr < 10:
-            recommendations.append({
-                "type": "danger",
-                "icon": "⚠️",
-                "title": f"Savings Rate {sr:.0f}% — Rendah",
-                "message": "Coba kurangi pengeluaran non-esensial untuk meningkatkan tabungan.",
-            })
-
-    # Daily average insight
-    if daily_avg > 0:
-        projected_monthly = daily_avg * 30
-        recommendations.append({
-            "type": "info",
-            "icon": "📊",
-            "title": f"Rata-rata Harian: Rp {daily_avg:,.0f}".replace(",", "."),
-            "message": f"Proyeksi pengeluaran bulan ini: Rp {projected_monthly:,.0f}.".replace(",", "."),
-        })
-
-    # Overall trend
-    overall_trend = "stable"
-    overall_change = 0
-    if last_month_total_expense > 0:
-        overall_change = round(
-            (total_expense - last_month_total_expense) / last_month_total_expense * 100, 1
-        )
-        overall_trend = "up" if overall_change > 5 else "down" if overall_change < -5 else "stable"
-
-    return {
-        "score": score,
-        "total_income": total_income,
-        "total_expense": total_expense,
-        "daily_average": round(daily_avg),
-        "overall_trend": overall_trend,
-        "overall_change": overall_change,
-        "top_categories": top_categories,
-        "recommendations": recommendations,
-        "over_budget_count": over_budget_count,
-    }
 
 
 async def get_trend_data(user_id: int, period: str = "daily") -> list[dict]:

@@ -121,7 +121,6 @@ async def api_dashboard(days: int = Query(30, ge=1, le=365)):
             "monthly": [],
             "savings": [],
             "budgets": [],
-            "analysis": {"score": 0, "total_income": 0, "total_expense": 0, "daily_average": 0, "overall_trend": "stable", "overall_change": 0, "top_categories": [], "recommendations": [], "over_budget_count": 0},
             "trend": [],
             "accounts": [],
         }
@@ -137,7 +136,6 @@ async def api_dashboard(days: int = Query(30, ge=1, le=365)):
         monthly_data,
         savings_data,
         budgets_data,
-        analysis_data,
         trend_data,
         accounts_data,
     ) = await asyncio.gather(
@@ -148,7 +146,6 @@ async def api_dashboard(days: int = Query(30, ge=1, le=365)):
         db.get_monthly_trend(uid, months=6),
         db.get_savings_goals(uid),
         db.get_budget_vs_actual(uid),
-        db.get_behavior_analysis(uid),
         db.get_trend_data(uid, period="daily"),
         db.get_accounts(uid),
     )
@@ -161,7 +158,6 @@ async def api_dashboard(days: int = Query(30, ge=1, le=365)):
         "monthly": monthly_data,
         "savings": savings_data,
         "budgets": budgets_data,
-        "analysis": analysis_data,
         "trend": trend_data,
         "accounts": accounts_data,
     }

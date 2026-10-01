@@ -236,56 +236,6 @@ async function updateKPIs(prefetchedData = null) {
 }
 
 // ═══════════════════════════════════════════
-// Behavior Analysis & Recommendations
-// ═══════════════════════════════════════════
-
-async function updateBehaviorAnalysis(prefetchedData = null) {
-    const data = prefetchedData || await fetchJSON(API.analysis);
-    if (!data) return;
-
-    // Recommendations List
-    const recList = document.getElementById('recommendationsList');
-    if (!data.recommendations || data.recommendations.length === 0) {
-        recList.innerHTML = `<div class="recommendation-item info">
-            <span class="recommendation-icon">💡</span>
-            <div>
-                <div class="recommendation-title">Belum ada analisis cukup</div>
-                <div class="recommendation-desc">Catat lebih banyak transaksi di Telegram bot untuk mendapatkan rekomendasi pintar.</div>
-            </div>
-        </div>`;
-    } else {
-        recList.innerHTML = data.recommendations.map(rec => `
-            <div class="recommendation-item ${rec.type}">
-                <span class="recommendation-icon">${rec.icon}</span>
-                <div>
-                    <div class="recommendation-title">${rec.title}</div>
-                    <div class="recommendation-desc">${rec.message}</div>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    // Top Categories
-    const topList = document.getElementById('topCategoriesList');
-    if (!data.top_categories || data.top_categories.length === 0) {
-        topList.innerHTML = `<div style="color: var(--text-muted); font-size: 13px;">Belum ada pengeluaran bulan ini.</div>`;
-    } else {
-        topList.innerHTML = data.top_categories.map(cat => {
-            const changeText = cat.change_pct > 0 ? `+${cat.change_pct}%` : `${cat.change_pct}%`;
-            return `
-                <div class="top-cat-item">
-                    <span class="top-cat-name">${cat.category}</span>
-                    <div>
-                        <span class="top-cat-val">${formatRupiahFull(cat.amount)}</span>
-                        <span class="top-cat-change ${cat.trend}">${changeText}</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-}
-
-// ═══════════════════════════════════════════
 // Trend Chart (With Period Switcher)
 // ═══════════════════════════════════════════
 
@@ -857,7 +807,6 @@ function handleSSEEvent(data) {
 async function refreshDashboard(highlightNew = false) {
     await Promise.all([
         updateKPIs(),
-        updateBehaviorAnalysis(),
         updateTrendChart(currentPeriod),
         updateCategoryChart(),
         updateMonthlyChart(),
@@ -878,7 +827,6 @@ async function initialLoad() {
     }
     await Promise.all([
         updateKPIs(data.summary),
-        updateBehaviorAnalysis(data.analysis),
         updateTrendChart('daily', data.trend),
         updateCategoryChart(data.categories),
         updateMonthlyChart(data.monthly),
